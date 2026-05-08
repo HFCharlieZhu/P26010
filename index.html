@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文案分配工具</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif; background: #f5f4f0; color: #1a1a1a; min-height: 100vh; }
+.wrap { max-width: 720px; margin: 0 auto; padding: 2rem 1rem; }
+.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 12px; }
+.title { font-size: 20px; font-weight: 600; color: #1a1a1a; }
+.identity-bar { display: flex; gap: 8px; }
+.id-btn { padding: 7px 18px; border-radius: 8px; border: 1px solid #d0cfc9; font-size: 14px; font-weight: 600; cursor: pointer; background: #fff; color: #888; transition: all 0.15s; letter-spacing: 0.5px; }
+.id-btn:hover { border-color: #aaa; color: #444; }
+.id-btn.active.AH { background: #dbeafe; color: #1d4ed8; border-color: #3b82f6; }
+.id-btn.active.TC { background: #dcfce7; color: #15803d; border-color: #22c55e; }
+.id-btn.active.WH { background: #fef3c7; color: #b45309; border-color: #f59e0b; }
+
+.quota-bar { display: flex; gap: 10px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.quota-card { flex: 1; min-width: 90px; background: #fff; border-radius: 10px; border: 1px solid #e5e4e0; padding: 0.75rem 1rem; }
+.quota-label { font-size: 11px; color: #888; margin-bottom: 4px; letter-spacing: 0.3px; }
+.quota-val { font-size: 22px; font-weight: 600; color: #1a1a1a; }
+.quota-val span { font-size: 12px; color: #aaa; font-weight: 400; }
+.quota-val.empty { color: #ef4444; }
+
+.grade-section { margin-bottom: 1.75rem; }
+.grade-header { display: flex; align-items: center; gap: 10px; margin-bottom: 0.75rem; }
+.grade-badge { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 6px; letter-spacing: 0.5px; }
+.grade-badge.A { background: #dbeafe; color: #1d4ed8; }
+.grade-badge.B { background: #fef3c7; color: #b45309; }
+.grade-badge.C { background: #dcfce7; color: #15803d; }
+.grade-info { font-size: 12px; color: #aaa; }
+
+.items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: 8px; }
+.item-card { border: 1px solid #e5e4e0; border-radius: 10px; padding: 10px 12px; cursor: pointer; background: #fff; transition: all 0.15s; user-select: none; }
+.item-card:hover:not(.taken):not(.disabled) { border-color: #bbb; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.item-card.sel-AH { background: #eff6ff; border-color: #3b82f6; }
+.item-card.sel-TC { background: #f0fdf4; border-color: #22c55e; }
+.item-card.sel-WH { background: #fffbeb; border-color: #f59e0b; }
+.item-card.taken { opacity: 0.4; cursor: not-allowed; }
+.item-card.disabled { opacity: 0.3; cursor: not-allowed; }
+.item-name { font-size: 13px; font-weight: 600; color: #1a1a1a; }
+.item-sub { font-size: 11px; color: #aaa; margin-top: 2px; }
+.item-pts { font-size: 11px; color: #ccc; margin-top: 5px; }
+.taken-by { font-size: 11px; font-weight: 700; margin-top: 4px; }
+.taken-by.AH { color: #1d4ed8; }
+.taken-by.TC { color: #15803d; }
+.taken-by.WH { color: #b45309; }
+
+.result-section { margin-top: 2rem; background: #fff; border-radius: 12px; border: 1px solid #e5e4e0; padding: 1.25rem; }
+.result-title { font-size: 15px; font-weight: 600; margin-bottom: 1rem; color: #1a1a1a; }
+.result-person { margin-bottom: 1rem; }
+.result-name { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.result-name.AH { color: #1d4ed8; }
+.result-name.TC { color: #15803d; }
+.result-name.WH { color: #b45309; }
+.result-items { font-size: 12px; color: #666; line-height: 1.9; }
+
+.bottom-bar { display: flex; align-items: center; gap: 10px; margin-top: 1.25rem; flex-wrap: wrap; }
+.reset-btn { font-size: 12px; color: #aaa; border: 1px solid #e5e4e0; border-radius: 8px; padding: 6px 14px; cursor: pointer; background: #fff; }
+.reset-btn:hover { background: #f5f4f0; color: #666; }
+.sync-note { font-size: 11px; color: #bbb; }
+
+.no-id-msg { background: #fff; border-radius: 10px; border: 1px solid #e5e4e0; padding: 1.5rem; text-align: center; font-size: 14px; color: #aaa; margin-bottom: 1.5rem; }
+
+.alert-box { position: fixed; top: 1rem; left: 50%; transform: translateX(-50%); background: #1a1a1a; color: #fff; font-size: 13px; padding: 10px 20px; border-radius: 10px; z-index: 999; opacity: 0; transition: opacity 0.2s; pointer-events: none; white-space: nowrap; }
+.alert-box.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="title">文案分配工具</div>
+    <div class="identity-bar">
+      <button class="id-btn AH" onclick="setIdentity('AH')">AH</button>
+      <button class="id-btn TC" onclick="setIdentity('TC')">TC</button>
+      <button class="id-btn WH" onclick="setIdentity('WH')">WH</button>
+    </div>
+  </div>
+
+  <div id="no-id" class="no-id-msg">👆 請先點選你的名字</div>
+
+  <div id="quota-bar" class="quota-bar" style="display:none"></div>
+  <div id="items-area"></div>
+
+  <div class="result-section">
+    <div class="result-title">目前選取結果</div>
+    <div id="result-area"></div>
+    <div class="bottom-bar">
+      <button class="reset-btn" onclick="resetAll()">清除全部選取</button>
+      <span class="sync-note">資料即時同步中</span>
+    </div>
+  </div>
+</div>
+
+<div class="alert-box" id="alert"></div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getDatabase, ref, onValue, set, remove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+const firebaseConfig = {
+  databaseURL: "https://p26010-94cbb-default-rtdb.firebaseio.com/"
+};
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const dbRef = ref(db, 'selections');
+
+const ITEMS = {
+  A: [
+    { id:'a1', name:'SF2307', sub:'GRN / ORG / BLK / BRN', pts:3, colors:4 },
+    { id:'a2', name:'SF2380', sub:'BLK / WHT / DGN', pts:2, colors:3 },
+    { id:'a3', name:'SF2501BLK', sub:'', pts:1, colors:1 },
+    { id:'a4', name:'SF2409BLK', sub:'', pts:1, colors:1 },
+    { id:'a5', name:'SW2401', sub:'', pts:1, colors:1 },
+    { id:'a6', name:'SW2501', sub:'', pts:1, colors:1 },
+    { id:'a7', name:'SW2404', sub:'', pts:1, colors:1 },
+    { id:'a8', name:'SW2403', sub:'', pts:1, colors:1 },
+    { id:'a9', name:'SF2590', sub:'', pts:1, colors:1 },
+  ],
+  B: [
+    { id:'b1', name:'SF2328', sub:'RED / BLK', pts:2, colors:2 },
+    { id:'b2', name:'SF2326', sub:'WHT / BLK', pts:2, colors:2 },
+    { id:'b3', name:'SF2319BLK', sub:'', pts:1, colors:1 },
+    { id:'b4', name:'SF2205', sub:'', pts:1, colors:1 },
+    { id:'b5', name:'SF2206', sub:'', pts:1, colors:1 },
+    { id:'b6', name:'SF2207', sub:'', pts:1, colors:1 },
+    { id:'b7', name:'SF2208', sub:'', pts:1, colors:1 },
+    { id:'b8', name:'33L ExpEnergy', sub:'', pts:1, colors:1 },
+    { id:'b9', name:'74H ExpSolid H', sub:'', pts:1, colors:1 },
+    { id:'b10', name:'SG2201', sub:'', pts:1, colors:1 },
+  ],
+  C: [
+    { id:'c1', name:'SF2540', sub:'DBR / BLK', pts:1, colors:2 },
+    { id:'c2', name:'SF2541', sub:'DBR / BLK', pts:1, colors:2 },
+    { id:'c3', name:'SF2406', sub:'', pts:1, colors:1 },
+    { id:'c4', name:'SF2316', sub:'', pts:1, colors:1 },
+    { id:'c5', name:'SF2306', sub:'', pts:1, colors:1 },
+    { id:'c6', name:'SG2403', sub:'', pts:1, colors:1 },
+    { id:'c7', name:'SF2389', sub:'', pts:1, colors:1 },
+    { id:'c8', name:'SF2388', sub:'', pts:1, colors:1 },
+    { id:'c9', name:'SF2481', sub:'', pts:1, colors:1 },
+  ]
+};
+
+const LIMITS = { A: 4, B: 4, C: 3 };
+
+let me = null;
+let state = { A:{}, B:{}, C:{} };
+
+onValue(dbRef, (snapshot) => {
+  const data = snapshot.val();
+  state = data || { A:{}, B:{}, C:{} };
+  render();
+});
+
+window.setIdentity = function(id) {
+  me = id;
+  document.querySelectorAll('.id-btn').forEach(b => { b.classList.remove('active'); });
+  document.querySelector('.id-btn.' + id).classList.add('active');
+  document.getElementById('no-id').style.display = 'none';
+  document.getElementById('quota-bar').style.display = 'flex';
+  render();
+};
+
+function usedPts(grade, person) {
+  let pts = 0;
+  (ITEMS[grade]||[]).forEach(item => {
+    if ((state[grade]||{})[item.id] === person) pts += item.pts;
+  });
+  return pts;
+}
+
+window.toggle = function(grade, itemId) {
+  if (!me) { showAlert('請先選擇你的身份'); return; }
+  const item = ITEMS[grade].find(i => i.id === itemId);
+  if (!item) return;
+  const gradeState = state[grade] || {};
+  const owner = gradeState[itemId];
+  if (owner && owner !== me) { showAlert('這個品項已被 ' + owner + ' 選走了'); return; }
+  const newState = JSON.parse(JSON.stringify(state));
+  if (!newState[grade]) newState[grade] = {};
+  if (owner === me) {
+    delete newState[grade][itemId];
+  } else {
+    const used = usedPts(grade, me);
+    if (used + item.pts > LIMITS[grade]) {
+      showAlert(grade + ' 級點數不足！上限 ' + LIMITS[grade] + ' 點，已用 ' + used + ' 點');
+      return;
+    }
+    newState[grade][itemId] = me;
+  }
+  set(dbRef, newState);
+};
+
+window.resetAll = function() {
+  if (!confirm('確定要清除所有人的選取嗎？')) return;
+  remove(dbRef);
+};
+
+function showAlert(msg) {
+  const el = document.getElementById('alert');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+function render() {
+  renderQuota();
+  renderItems();
+  renderResult();
+}
+
+function renderQuota() {
+  if (!me) return;
+  const bar = document.getElementById('quota-bar');
+  let html = '';
+  ['A','B','C'].forEach(g => {
+    const used = usedPts(g, me);
+    const lim = LIMITS[g];
+    const rem = lim - used;
+    html += '<div class="quota-card">';
+    html += '<div class="quota-label">' + g + ' 級剩餘點數</div>';
+    html += '<div class="quota-val' + (rem === 0 ? ' empty' : '') + '">' + rem + ' <span>/ ' + lim + ' 點</span></div>';
+    html += '</div>';
+  });
+  bar.innerHTML = html;
+}
+
+function renderItems() {
+  const area = document.getElementById('items-area');
+  let html = '';
+  ['A','B','C'].forEach(grade => {
+    html += '<div class="grade-section">';
+    html += '<div class="grade-header">';
+    html += '<span class="grade-badge ' + grade + '">' + grade + ' 級</span>';
+    html += '<span class="grade-info">每人上限 ' + LIMITS[grade] + ' 點</span>';
+    html += '</div><div class="items-grid">';
+    ITEMS[grade].forEach(item => {
+      const gradeState = state[grade] || {};
+      const owner = gradeState[item.id];
+      let cls = 'item-card';
+      let takenBy = '';
+      if (owner === me) {
+        cls += ' sel-' + me;
+      } else if (owner) {
+        cls += ' taken';
+        takenBy = '<div class="taken-by ' + owner + '">' + owner + '</div>';
+      } else if (me) {
+        const used = usedPts(grade, me);
+        if (used + item.pts > LIMITS[grade]) cls += ' disabled';
+      }
+      const ptsLabel = item.colors > 1 ? item.pts + '點（' + item.colors + '色組）' : item.pts + '點';
+      html += '<div class="' + cls + '" onclick="toggle(\'' + grade + '\',\'' + item.id + '\')">';
+      html += '<div class="item-name">' + item.name + '</div>';
+      if (item.sub) html += '<div class="item-sub">' + item.sub + '</div>';
+      html += '<div class="item-pts">' + ptsLabel + '</div>';
+      html += takenBy;
+      html += '</div>';
+    });
+    html += '</div></div>';
+  });
+  area.innerHTML = html;
+}
+
+function renderResult() {
+  const area = document.getElementById('result-area');
+  let html = '';
+  ['AH','TC','WH'].forEach(person => {
+    html += '<div class="result-person">';
+    html += '<div class="result-name ' + person + '">' + person + '</div>';
+    html += '<div class="result-items">';
+    let hasAny = false;
+    ['A','B','C'].forEach(grade => {
+      const gradeState = state[grade] || {};
+      const picked = ITEMS[grade].filter(i => gradeState[i.id] === person);
+      if (picked.length) {
+        hasAny = true;
+        const pts = picked.reduce((s,i) => s + i.pts, 0);
+        html += '<strong>' + grade + '級</strong>：';
+        html += picked.map(i => i.name + (i.sub ? '（' + i.sub + '）' : '')).join('、');
+        html += ' <span style="color:#ccc">（' + pts + '點）</span><br>';
+      }
+    });
+    if (!hasAny) html += '<span style="color:#ccc">尚未選取</span>';
+    html += '</div></div>';
+  });
+  area.innerHTML = html;
+}
+</script>
+</body>
+</html>
