@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shopline 長條圖產生器</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC',sans-serif;background:#f5f5f3;color:#1a1a1a;font-size:14px;height:100vh;overflow:hidden}
+.app{display:grid;grid-template-columns:200px 420px 1fr;height:100vh}
+
+/* 專案側欄 */
+.projects{background:#1a1a1a;color:#fff;display:flex;flex-direction:column;overflow:hidden}
+.projects-header{padding:16px 14px 12px;border-bottom:1px solid #333}
+.projects-header h1{font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px}
+.btn-new-project{width:100%;font-size:12px;padding:7px;border:1px solid #444;border-radius:6px;background:transparent;cursor:pointer;color:#ccc}
+.btn-new-project:hover{background:#333;color:#fff}
+.project-list{flex:1;overflow-y:auto;padding:8px}
+.project-item{padding:8px 10px;border-radius:6px;cursor:pointer;margin-bottom:2px;display:flex;align-items:center;justify-content:space-between;gap:4px}
+.project-item:hover{background:#2a2a2a}
+.project-item.active{background:#333}
+.project-name{font-size:12px;color:#ddd;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.project-name-input{font-size:12px;background:transparent;border:none;color:#fff;width:100%;outline:none;padding:0}
+.project-del{font-size:10px;padding:2px 5px;border:1px solid #444;border-radius:4px;background:transparent;cursor:pointer;color:#666;flex-shrink:0}
+.project-del:hover{color:#f66;border-color:#f66}
+
+/* 左側操作 */
+.sidebar{background:#fff;border-right:1px solid #e5e5e3;display:flex;flex-direction:column;overflow:hidden}
+.sidebar-header{padding:16px 20px 0;border-bottom:1px solid #e5e5e3}
+.sidebar-header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sidebar-header-top h2{font-size:14px;font-weight:600}
+.tab-bar{display:flex;gap:0}
+.tab{font-size:12px;padding:7px 12px;border:none;background:transparent;cursor:pointer;color:#888;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab.active{color:#1a1a1a;font-weight:500;border-bottom:2px solid #1a1a1a}
+.tab-content{display:none;flex:1;overflow-y:auto;padding:16px 20px}
+.tab-content.active{display:block}
+
+/* 右側預覽 */
+.preview-area{background:#e8e8e6;overflow-y:auto;padding:24px;display:flex;flex-direction:column;align-items:center}
+.preview-toolbar{width:100%;max-width:1000px;display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.preview-toolbar span{font-size:12px;color:#666}
+.preview-frame{width:100%;max-width:1000px;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.1)}
+.preview-frame.mobile{max-width:390px}
+
+/* 共用元件 */
+.section{margin-bottom:16px}
+.section-label{font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px}
+.card{background:#f9f9f7;border:1px solid #e5e5e3;border-radius:8px;padding:12px;margin-bottom:8px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.card-num{font-size:11px;font-weight:600;color:#888}
+input[type=text],input[type=number],select,textarea{width:100%;padding:6px 9px;border:1px solid #ddd;border-radius:6px;font-size:13px;background:#fff;color:#1a1a1a;font-family:inherit}
+input[type=text]:focus,select:focus,textarea:focus{outline:none;border-color:#999}
+label{font-size:12px;color:#555;display:block;margin-bottom:4px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.mb8{margin-bottom:8px}
+
+.btn{font-size:12px;padding:5px 12px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;color:#1a1a1a;white-space:nowrap}
+.btn:hover{background:#f5f5f3}
+.btn-primary{background:#1a1a1a;color:#fff;border-color:#1a1a1a;font-size:13px;padding:8px 16px;width:100%}
+.btn-primary:hover{background:#333}
+.btn-sm{font-size:11px;padding:3px 8px}
+.btn-add{width:100%;font-size:12px;padding:6px;border:1px dashed #ccc;border-radius:6px;background:transparent;cursor:pointer;color:#666}
+.btn-add:hover{background:#f5f5f3;border-color:#999}
+.btn-del{font-size:11px;padding:2px 7px;border:1px solid #eee;border-radius:4px;background:transparent;cursor:pointer;color:#999}
+.btn-del:hover{background:#fee;color:#c00;border-color:#fcc}
+
+.opt-row{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.opt-row input{flex:1;font-size:12px}
+.opt-row input.w80{flex:0 0 80px}
+.color-dot{width:14px;height:14px;border-radius:3px;border:1px solid #ddd;flex-shrink:0}
+.output-box{font-family:'Courier New',monospace;font-size:11px;background:#f4f4f2;border:1px solid #e0e0de;border-radius:6px;padding:12px;resize:vertical;min-height:140px;line-height:1.5}
+.copy-row{display:flex;align-items:center;gap:8px;margin-top:8px}
+.copied{font-size:12px;color:#2a9;display:none}
+.preview-placeholder{display:flex;align-items:center;justify-content:center;min-height:300px;color:#bbb;font-size:13px}
+
+/* 批次產出 */
+.batch-item{background:#f9f9f7;border:1px solid #e5e5e3;border-radius:6px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between}
+.batch-name{font-size:12px;font-weight:500}
+.batch-status{font-size:11px;color:#888}
+.batch-output{margin-top:8px;display:none}
+.badge{font-size:10px;padding:2px 7px;border-radius:10px;background:#e8f5e9;color:#2e7d32}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+<!-- 專案側欄 -->
+<div class="projects">
+  <div class="projects-header">
+    <h1>專案</h1>
+    <button class="btn-new-project" onclick="newProject()">＋ 新增專案</button>
+  </div>
+  <div class="project-list" id="project-list"></div>
+</div>
+
+<!-- 操作區 -->
+<div class="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-header-top">
+      <h2 id="current-project-name">未命名專案</h2>
+      <button class="btn btn-sm" onclick="manualSave()" id="save-btn" style="font-size:12px;padding:4px 12px">儲存</button>
+    </div>
+    <div class="tab-bar">
+      <button class="tab active" onclick="switchTab('edit')">編輯</button>
+      <button class="tab" onclick="switchTab('options')">選項</button>
+      <button class="tab" onclick="switchTab('batch')">批次</button>
+      <button class="tab" onclick="switchTab('output')">產出</button>
+    </div>
+  </div>
+
+  <!-- 編輯 -->
+  <div class="tab-content active" id="tab-edit">
+    <div class="section">
+      <div class="section-label">商品設定</div>
+      <div class="mb8">
+        <label>商品名稱（用於 alt）</label>
+        <input type="text" id="product-name" placeholder="SW2501 多口袋彈力工作褲" oninput="debouncedUpdate()">
+      </div>
+      <div class="grid2">
+        <div>
+          <label>產出方式</label>
+          <select id="output-type" onchange="autoSave()">
+            <option value="full">完整（含 style）</option>
+            <option value="html">只有 HTML</option>
+          </select>
+        </div>
+        <div>
+          <label>預覽尺寸</label>
+          <select id="preview-size" onchange="togglePreviewSize()">
+            <option value="desktop">桌面版</option>
+            <option value="mobile">手機版</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-label">張數</div>
+      <div id="blocks"></div>
+      <button class="btn-add" onclick="addBlock()">＋ 新增一張</button>
+    </div>
+  </div>
+
+  <!-- 選項設定 -->
+  <div class="tab-content" id="tab-options">
+    <div class="section">
+      <div class="section-label">版面高度</div>
+      <div style="font-size:11px;color:#999;margin-bottom:8px">名稱 / padding-top %</div>
+      <div id="height-options"></div>
+      <button class="btn-add" onclick="addHeightOpt()">＋ 新增</button>
+    </div>
+    <div class="section">
+      <div class="section-label">邊緣距離</div>
+      <div style="font-size:11px;color:#999;margin-bottom:8px">名稱 / padding %</div>
+      <div id="offset-options"></div>
+      <button class="btn-add" onclick="addOffsetOpt()">＋ 新增</button>
+    </div>
+    <div class="section">
+      <div class="section-label">文字樣式</div>
+      <div style="font-size:11px;color:#999;margin-bottom:8px">名稱 / CSS class / 字級</div>
+      <div id="style-options"></div>
+      <button class="btn-add" onclick="addStyleOpt()">＋ 新增</button>
+    </div>
+    <div class="section">
+      <div class="section-label">文字顏色</div>
+      <div style="font-size:11px;color:#999;margin-bottom:8px">名稱 / 色碼</div>
+      <div id="color-options"></div>
+      <button class="btn-add" onclick="addColorOpt()">＋ 新增</button>
+    </div>
+    <div class="section" style="padding-top:16px;border-top:1px solid #e5e5e3">
+      <div class="section-label">匯出 / 匯入</div>
+      <div class="grid2">
+        <button class="btn" onclick="exportJSON()">匯出 JSON</button>
+        <label class="btn" style="text-align:center;cursor:pointer">匯入 JSON<input type="file" accept=".json" style="display:none" onchange="importJSON(event)"></label>
+      </div>
+    </div>
+  </div>
+
+  <!-- 批次產出 -->
+  <div class="tab-content" id="tab-batch">
+    <div class="section">
+      <div class="section-label">批次產出所有專案</div>
+      <div style="font-size:12px;color:#888;margin-bottom:12px">選擇要產出的專案，一次複製所有程式碼</div>
+      <div id="batch-list"></div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn" style="flex:1" onclick="selectAllBatch()">全選</button>
+        <button class="btn" style="flex:1" onclick="deselectAllBatch()">取消全選</button>
+      </div>
+      <button class="btn-primary" style="margin-top:8px" onclick="generateBatch()">產生選取的程式碼</button>
+    </div>
+    <div id="batch-output" style="display:none">
+      <div class="section">
+        <div class="section-label">批次結果</div>
+        <textarea class="output-box" id="batch-result" readonly style="min-height:200px"></textarea>
+        <div class="copy-row">
+          <button class="btn" onclick="copyBatch()">複製全部</button>
+          <span class="copied" id="batch-copied">已複製！</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 產出 -->
+  <div class="tab-content" id="tab-output">
+    <div class="section">
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
+        <label style="font-size:12px;display:flex;align-items:center;gap:8px">
+          <input type="checkbox" id="opt-include-fonts" checked>
+          輸出 Google Fonts（Shopline 已有字體可取消勾選）
+        </label>
+        <label style="font-size:12px;display:flex;align-items:center;gap:8px">
+          <input type="checkbox" id="opt-include-css" checked>
+          輸出 CSS（同一頁多個長條圖只需第一個勾選）
+        </label>
+      </div>
+      <button class="btn-primary" onclick="generate()" style="margin-bottom:12px">產生程式碼</button>
+      <textarea class="output-box" id="output" readonly placeholder="按上方「產生程式碼」後顯示"></textarea>
+      <div class="copy-row">
+        <button class="btn" onclick="copyCode()">複製</button>
+        <span class="copied" id="copied">已複製！</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 預覽 -->
+<div class="preview-area">
+  <div class="preview-toolbar">
+    <span>預覽</span>
+    <button class="btn btn-sm" onclick="renderPreview()">重新整理</button>
+  </div>
+  <div class="preview-frame" id="preview-frame" style="overflow-y:auto;max-height:calc(100vh - 80px);">
+    <div id="preview-inner">
+      <div class="preview-placeholder">填寫左側設定後，預覽會自動更新</div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+// ==================== 選項資料 ====================
+let heightOpts=[{l:'800px',v:'80%'},{l:'1000px',v:'100%'},{l:'1200px',v:'120%'},{l:'1600px',v:'160%'},{l:'2000px',v:'200%'},{l:'2500px',v:'250%'}];
+let offsetOpts=[{l:'0px',v:'0%'},{l:'50px',v:'5%'},{l:'100px',v:'10%'},{l:'200px',v:'20%'},{l:'300px',v:'30%'}];
+let styleOpts=[{l:'型號 t-model',v:'t-model',fs:'',vw:'4vw'},{l:'大標題 t-title-xl',v:'t-title-xl',fs:'',vw:'8vw'},{l:'中標題 t-title-lg',v:'t-title-lg',fs:'',vw:'6vw'},{l:'副標 t-sub-lg',v:'t-sub-lg',fs:'',vw:'3.5vw'},{l:'內文 t-body',v:'t-body',fs:'',vw:'3.5vw'}];
+let colorOpts=[{l:'黑',v:'#000000'},{l:'白',v:'#FFFFFF'},{l:'灰',v:'#595757'}];
+let alignOpts=[{l:'從上往下',v:'align-top'},{l:'從下往上',v:'align-bottom'}];
+let weightOpts=[{l:'細 500',v:'500'},{l:'粗 700',v:'700'},{l:'最粗 900',v:'900'}];
+let textAlignOpts=[{l:'靠左',v:'left'},{l:'置中',v:'center'},{l:'靠右',v:'right'}];
+
+// ==================== 專案管理 ====================
+let projects=[];
+let currentProjectId=null;
+let blockCount=0,textCount=0;
+
+function loadProjects(){
+  projects=JSON.parse(localStorage.getItem('sl-projects')||'[]');
+  if(!projects.length) newProject(true);
+  else{currentProjectId=projects[0].id;renderProjectList();loadProject(currentProjectId);}
+}
+
+function saveProjects(){
+  localStorage.setItem('sl-projects',JSON.stringify(projects));
+}
+
+function newProject(silent){
+  const id='proj-'+Date.now();
+  const proj={id,name:'未命名專案',state:null};
+  projects.unshift(proj);
+  currentProjectId=id;
+  saveProjects();
+  renderProjectList();
+  resetEditor();
+  if(!silent) renderBatchList();
+}
+
+function deleteProject(id,e){
+  e.stopPropagation();
+  if(projects.length===1){alert('至少需要保留一個專案');return;}
+  projects=projects.filter(p=>p.id!==id);
+  if(currentProjectId===id){currentProjectId=projects[0].id;loadProject(currentProjectId);}
+  saveProjects();
+  renderProjectList();
+  renderBatchList();
+}
+
+function switchProject(id){
+  autoSave();
+  currentProjectId=id;
+  loadProject(id);
+  renderProjectList();
+}
+
+function renameProject(id,name){
+  const p=projects.find(p=>p.id===id);
+  if(p){p.name=name;saveProjects();renderBatchList();}
+  document.getElementById('current-project-name').textContent=name||'未命名專案';
+}
+
+function renderProjectList(){
+  const el=document.getElementById('project-list');
+  el.innerHTML='';
+  projects.forEach(p=>{
+    const item=document.createElement('div');
+    item.className='project-item'+(p.id===currentProjectId?' active':'');
+    item.onclick=()=>switchProject(p.id);
+    const nameEl=document.createElement('input');
+    nameEl.className='project-name-input';
+    nameEl.value=p.name;
+    nameEl.onclick=e=>e.stopPropagation();
+    nameEl.oninput=e=>renameProject(p.id,e.target.value);
+    const del=document.createElement('button');
+    del.className='project-del';del.textContent='✕';
+    del.onclick=e=>deleteProject(p.id,e);
+    item.appendChild(nameEl);item.appendChild(del);
+    el.appendChild(item);
+  });
+}
+
+function autoSave(){
+  if(!currentProjectId)return;
+  const p=projects.find(p=>p.id===currentProjectId);
+  if(p){p.state=getState();saveProjects();}
+}
+
+// ==================== 防抖 ====================
+let _debounceTimer=null;
+function debouncedUpdate(){
+  clearTimeout(_debounceTimer);
+  _debounceTimer=setTimeout(()=>{autoSave();renderPreview();},300);
+}
+
+function loadProject(id){
+  const p=projects.find(p=>p.id===id);
+  if(!p)return;
+  document.getElementById('current-project-name').textContent=p.name||'未命名專案';
+  if(p.state)loadState(p.state);
+  else resetEditor();
+}
+
+function resetEditor(){
+  document.getElementById('product-name').value='';
+  document.getElementById('output-type').value='full';
+  document.getElementById('blocks').innerHTML='';
+  blockCount=0;textCount=0;
+  addBlock();
+  renderPreview();
+}
+
+// ==================== 選項渲染 ====================
+function renderOptList(arr,containerId,renderFn){
+  const el=document.getElementById(containerId);
+  el.innerHTML='';
+  arr.forEach((o,i)=>{
+    const row=document.createElement('div');row.className='opt-row';
+    if(containerId==='color-options'){
+      const dot=document.createElement('div');dot.className='color-dot';dot.style.background=o.v;dot.id='dot-'+i;row.appendChild(dot);
+    }
+    const li=document.createElement('input');li.type='text';li.value=o.l;li.placeholder='名稱';
+    li.oninput=e=>{arr[i].l=e.target.value;refreshAllSelects();autoSave()};
+    const vi=document.createElement('input');vi.type='text';vi.value=o.v;vi.className='w80';vi.placeholder='值';
+    vi.oninput=e=>{arr[i].v=e.target.value;refreshAllSelects();autoSave();if(containerId==='color-options'){const d=document.getElementById('dot-'+i);if(d)d.style.background=e.target.value;}};
+    const db=document.createElement('button');db.className='btn-del';db.textContent='刪';
+    db.onclick=()=>{arr.splice(i,1);renderFn();refreshAllSelects();autoSave()};
+    row.appendChild(li);row.appendChild(vi);
+    if(containerId==='style-options'){
+      const fi=document.createElement('input');fi.type='text';fi.value=o.fs||'';fi.className='w80';fi.placeholder='字級（px）';fi.style.flex='0 0 90px';
+      fi.oninput=e=>{arr[i].fs=e.target.value;autoSave();renderPreview()};
+      row.appendChild(fi);
+    }
+    row.appendChild(db);el.appendChild(row);
+  });
+}
+function renderHeights(){renderOptList(heightOpts,'height-options',renderHeights)}
+function renderOffsets(){renderOptList(offsetOpts,'offset-options',renderOffsets)}
+function renderStyles(){renderOptList(styleOpts,'style-options',renderStyles)}
+function renderColors(){renderOptList(colorOpts,'color-options',renderColors)}
+function addHeightOpt(){heightOpts.push({l:'新高度',v:'100%'});renderHeights();refreshAllSelects()}
+function addOffsetOpt(){offsetOpts.push({l:'新距離',v:'10%'});renderOffsets();refreshAllSelects()}
+function addStyleOpt(){styleOpts.push({l:'新樣式',v:'t-body'});renderStyles();refreshAllSelects()}
+function addColorOpt(){colorOpts.push({l:'新顏色',v:'#000000'});renderColors();refreshAllSelects()}
+
+function mkSel(arr,id,defIdx,extraOpts,attr){
+  const s=document.createElement('select');s.id=id;if(attr)s.setAttribute(attr,'1');
+  arr.forEach((o,i)=>{const op=document.createElement('option');op.value=o.v;op.textContent=o.l;if(i===defIdx)op.selected=true;s.appendChild(op)});
+  if(extraOpts)extraOpts.forEach(o=>{const op=document.createElement('option');op.value=o.v;op.textContent=o.l;s.appendChild(op)});
+  return s;
+}
+
+function refreshAllSelects(){
+  const ref=(attr,arr,extraFn)=>document.querySelectorAll('['+attr+']').forEach(s=>{const v=s.value;s.innerHTML='';arr.forEach(o=>{const op=document.createElement('option');op.value=o.v;op.textContent=o.l;if(o.v===v)op.selected=true;s.appendChild(op)});if(extraFn)extraFn(s,v)});
+  ref('data-hsel',heightOpts);ref('data-osel',offsetOpts);ref('data-ssel',styleOpts);
+  ref('data-csel',colorOpts,(s,v)=>{const op=document.createElement('option');op.value='custom';op.textContent='自訂';if(v==='custom')op.selected=true;s.appendChild(op)});
+  renderPreview();
+}
+
+function updateMarginLabels(blockId){
+  const align=document.getElementById('align-'+blockId)?.value||'align-top';
+  const isBottom=align==='align-bottom';
+  const textsWrap=document.getElementById('texts-'+blockId);
+  if(!textsWrap)return;
+  textsWrap.querySelectorAll('[id^="text-"]').forEach(tel=>{
+    const tid=tel.id.replace('text-','');
+    const lbl=document.getElementById('tmt-label-'+tid);
+    if(lbl)lbl.textContent=isBottom?'下距離':'上距離';
+  });
+}
+
+// ==================== 張數排序 ====================
+function moveBlock(id,dir){
+  const container=document.getElementById('blocks');
+  const cards=[...container.querySelectorAll(':scope > .card')];
+  const el=document.getElementById('block-'+id);
+  const idx=cards.indexOf(el);
+  if(dir==='up'&&idx>0){container.insertBefore(el,cards[idx-1]);}
+  else if(dir==='down'&&idx<cards.length-1){container.insertBefore(cards[idx+1],el);}
+  refreshBlockNums();autoSave();renderPreview();
+}
+
+function refreshBlockNums(){
+  const cards=[...document.getElementById('blocks').querySelectorAll(':scope > .card')];
+  cards.forEach((card,i)=>{
+    const numEl=card.querySelector('.card-num');
+    if(numEl)numEl.textContent='第 '+(i+1)+' 張';
+  });
+}
+
+// ==================== 張數 ====================
+function addBlock(){
+  blockCount++;const id=blockCount;
+  const el=document.createElement('div');el.className='card';el.id='block-'+id;
+  const hSel=mkSel(heightOpts,'height-'+id,3,null,'data-hsel');hSel.onchange=()=>{autoSave();renderPreview()};
+  el.innerHTML=`
+    <div class="card-header">
+      <span class="card-num">第 ${id} 張</span>
+      <div style="display:flex;align-items:center;gap:4px">
+        <button class="btn-del" title="上移" onclick="moveBlock(${id},'up')">↑</button>
+        <button class="btn-del" title="下移" onclick="moveBlock(${id},'down')">↓</button>
+        <button class="btn-del" onclick="document.getElementById('block-${id}').remove();refreshBlockNums();autoSave();renderPreview()">刪除</button>
+      </div>
+    </div>
+    <div class="mb8"><label>圖片連結</label><input type="text" id="img-${id}" placeholder="https://..." oninput="debouncedUpdate()"></div>
+    <div class="mb8"><label>圖片 alt 說明文字</label><input type="text" id="alt-${id}" placeholder="SW2501 多口袋彈力工作褲 高彈透氣" oninput="debouncedUpdate()"></div>
+    <div class="grid2 mb8">
+      <div><label>高度</label><div id="hsel-${id}"></div></div>
+      <div><label>文字起始位置（%）</label><input type="number" id="tpos-${id}" value="10" min="0" max="100" oninput="debouncedUpdate()"></div>
+    </div>
+    <div style="font-size:11px;color:#888;margin-bottom:6px;font-weight:600">文字段落</div>
+    <div id="texts-${id}"></div>
+    <button class="btn-add" onclick="addText(${id})">＋ 新增文字段落</button>
+  `;
+  document.getElementById('blocks').appendChild(el);
+  document.getElementById('hsel-'+id).appendChild(hSel);
+  addText(id);
+  refreshBlockNums();
+}
+
+function addText(blockId){
+  textCount++;const tid=textCount;
+  const wrap=document.createElement('div');wrap.id='text-'+tid;
+  wrap.style.cssText='background:#fff;border:1px solid #e5e5e3;border-radius:6px;padding:8px;margin-bottom:8px';
+  const sSel=mkSel(styleOpts,'tstyle-'+tid,1,null,'data-ssel');sSel.onchange=()=>{autoSave();renderPreview()};
+  const cSel=mkSel(colorOpts,'tcolor-'+tid,0,[{l:'自訂',v:'custom'}],'data-csel');cSel.onchange=()=>{toggleCustom(tid);autoSave();renderPreview()};
+  const wSel=mkSel(weightOpts,'tweight-'+tid,0,null,null);wSel.onchange=()=>{autoSave();renderPreview()};
+  const taSel=mkSel(textAlignOpts,'talign-'+tid,0,null,null);taSel.onchange=()=>{autoSave();renderPreview()};
+  wrap.innerHTML=`
+    <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
+      <button class="btn-del" onclick="document.getElementById('text-${tid}').remove();autoSave();renderPreview()">刪除</button>
+    </div>
+    <div class="grid3 mb8">
+      <div><label>樣式</label><div id="ssel-${tid}"></div></div>
+      <div><label>字重</label><div id="wsel-${tid}"></div></div>
+      <div><label>對齊</label><div id="tasel-${tid}"></div></div>
+    </div>
+    <div class="grid2 mb8">
+      <div><label>顏色</label><div id="csel-${tid}"></div></div>
+      <div id="custom-wrap-${tid}" style="display:none"><label>自訂色碼</label><input type="text" id="tcustom-${tid}" placeholder="#RRGGBB" oninput="debouncedUpdate()"></div>
+    </div>
+    <div class="grid2 mb8">
+      <div><label>行距</label><input type="text" id="tlh-${tid}" placeholder="預設（留空）" oninput="debouncedUpdate()"></div>
+      <div><label>段落間距（vw）</label><input type="number" id="tmt-${tid}" placeholder="0" min="0" step="0.1" oninput="debouncedUpdate()"></div>
+    </div>
+    <div><label>文字內容（換行用 \\n）</label><input type="text" id="tcontent-${tid}" placeholder="文字內容" oninput="debouncedUpdate()"></div>
+  `;
+  document.getElementById('texts-'+blockId).appendChild(wrap);
+  document.getElementById('ssel-'+tid).appendChild(sSel);
+  document.getElementById('wsel-'+tid).appendChild(wSel);
+  document.getElementById('tasel-'+tid).appendChild(taSel);
+  document.getElementById('csel-'+tid).appendChild(cSel);
+}
+
+function toggleCustom(tid){
+  document.getElementById('custom-wrap-'+tid).style.display=document.getElementById('tcolor-'+tid).value==='custom'?'block':'none';
+}
+
+// ==================== 預覽 ====================
+function togglePreviewSize(){
+  document.getElementById('preview-frame').className='preview-frame'+(document.getElementById('preview-size').value==='mobile'?' mobile':'');
+}
+
+const PREVIEW_CSS=`<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto Sans TC:wght@500;700;900&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+.canvas-wrapper{width:100%;max-width:1000px;margin:0 auto}
+.canvas-section{width:100%;position:relative;overflow:hidden;contain:layout style;font-family:'Noto Sans TC',sans-serif;color:#000}
+.background-img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:1}
+.text-overlay{position:absolute;top:0;left:0;right:0;z-index:2;display:flex;flex-direction:column}
+.text-spacer{width:100%;flex-shrink:0}
+.text-content{padding-left:4.8%;padding-right:4.8%;display:flex;flex-direction:column}
+.t-model{font-size:clamp(1px,4vw,40px);font-weight:500;display:block;margin:0;padding:0;font-family:'Noto Sans TC',sans-serif;line-height:1.2}
+.t-title-xl{font-size:clamp(1px,8vw,80px);font-weight:900;line-height:1;margin:0;padding:0;font-family:'Noto Sans TC',sans-serif}
+.t-title-lg{font-size:clamp(1px,6vw,60px);font-weight:900;line-height:1.1;margin:0;padding:0;font-family:'Noto Sans TC',sans-serif}
+.t-sub-lg{font-size:clamp(1px,3.5vw,35px);font-weight:500;margin:0;padding:0;font-family:'Noto Sans TC',sans-serif}
+.t-body{font-size:clamp(1px,3.5vw,35px);font-weight:500;line-height:1.3;margin:0;padding:0;font-family:'Noto Sans TC',sans-serif}
+</style>`;
+
+function getFsStyle(style){
+  const opt=styleOpts.find(o=>o.v===style);
+  if(!opt||!opt.fs)return'';
+  const px=parseFloat(opt.fs);
+  if(isNaN(px)||px<=0)return`font-size:${opt.fs}!important;`;
+  const vw=(px/10).toFixed(2).replace(/\.?0+$/,'');
+  return`font-size:clamp(1px,${vw}vw,${opt.fs})!important;`;
+}
+
+function buildHTML(forPreview,state){
+  const s=state||null;
+  const productName=s?s.productName:(document.getElementById('product-name').value||'商品');
+  const getBlockEls=()=>s?null:document.querySelectorAll('[id^="block-"]:not([id*="text"]):not([id*="hsel"]):not([id*="asel"]):not([id*="osel"]):not([id*="ssel"]):not([id*="wsel"]):not([id*="tasel"]):not([id*="csel"])');
+
+  if(s){
+    let html='';
+    (s.blocks||[]).forEach((b,i)=>{
+      const pt=b.height||'120%';
+      const tpos=b.tpos!==undefined?b.tpos:'10';
+      const altText=b.alt||`${productName} 第${i+1}張`;
+      let textHtml='';
+      (b.texts||[]).forEach(t=>{
+        const style=t.style||'t-body';
+        const color=t.color==='custom'?(t.custom||'#000000'):t.color||'#000000';
+        const weight=t.weight||'500';
+        const talign=t.talign||'left';
+        const lh=t.lineHeight?`line-height:${t.lineHeight};`:'';
+        const mt=t.marginTop&&parseFloat(t.marginTop)>0?`margin-top:${parseFloat(t.marginTop)}%!important;`:'';
+        const fs=getFsStyle(style);
+        const content=(t.content||'').replace(/\\n/g,'<br>');
+        const tag=(['t-title-xl','t-title-lg'].includes(style))?'h2':style==='t-model'?'span':'p';
+        const colorStyle=color.toLowerCase()!=='#000000'?`color:${color};`:'';
+        const alignStyle=talign!=='left'?`text-align:${talign};`:'';
+        textHtml+=`      <${tag} class="${style}" style="font-weight:${weight};font-family:'Noto Sans TC',sans-serif;${colorStyle}${alignStyle}${lh}${mt}${fs}">${content}</${tag}>\n`;
+      });
+      const ptNum=parseFloat(pt);
+      const aspectRatio=ptNum?`aspect-ratio:100/${ptNum};`:'';
+      const imgH=ptNum?Math.round(ptNum*10):1200;
+      const imgSrc=forPreview&&!b.img?'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="60"><rect width="100" height="60" fill="%23e0e0e0"/><text x="50" y="30" text-anchor="middle" fill="%23999" font-size="10" dy=".3em">圖片</text></svg>':b.img||'';
+      const badge=forPreview?`\n    <div style="position:absolute;top:8px;left:8px;z-index:10;background:rgba(0,0,0,0.55);color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;font-family:sans-serif;pointer-events:none">第 ${i+1} 張</div>`:'';
+      const loading=i===0?'eager':'lazy';
+      const decoding=i===0?'sync':'async';
+      const fetchpri=i===0?' fetchpriority="high"':'';
+      html+=`  <div class="canvas-section" style="padding-top:${pt};${aspectRatio}">${badge}\n    <img class="background-img" src="${imgSrc}" alt="${altText}" width="1000" height="${imgH}" loading="${loading}" decoding="${decoding}"${fetchpri}>\n    <div class="text-overlay">\n      <div class="text-spacer" style="padding-top:${tpos}%;"></div>\n      <div class="text-content">\n${textHtml}      </div>\n    </div>\n  </div>\n\n`;
+    });
+    return `<div class="canvas-wrapper">\n${html}</div>`;
+  }
+
+  const blockEls=getBlockEls();
+  let html='';
+  blockEls.forEach((bel,i)=>{
+    const id=bel.id.replace('block-','');
+    const img=document.getElementById('img-'+id)?.value||'';
+    const alt=document.getElementById('alt-'+id)?.value||`${productName} 第${i+1}張`;
+    const pt=document.getElementById('height-'+id)?.value||'120%';
+    const tpos=document.getElementById('tpos-'+id)?.value||'10';
+    const altText=alt;
+    let textHtml='';
+    bel.querySelectorAll('[id^="text-"]').forEach(tel=>{
+      const tid=tel.id.replace('text-','');
+      const style=document.getElementById('tstyle-'+tid)?.value||'t-body';
+      const colorSel=document.getElementById('tcolor-'+tid)?.value||'#000000';
+      const color=colorSel==='custom'?(document.getElementById('tcustom-'+tid)?.value||'#000000'):colorSel;
+      const weight=document.getElementById('tweight-'+tid)?.value||'500';
+      const talign=document.getElementById('talign-'+tid)?.value||'left';
+      const lh=document.getElementById('tlh-'+tid)?.value;
+      const mt=document.getElementById('tmt-'+tid)?.value;
+      const lhStyle=lh?`line-height:${lh};`:'';
+      const mtStyle=mt&&parseFloat(mt)>0?`margin-top:${parseFloat(mt)}%!important;`:'';
+      const fsStyle=getFsStyle(style);
+      const content=(document.getElementById('tcontent-'+tid)?.value||'').replace(/\\n/g,'<br>');
+      const tag=(['t-title-xl','t-title-lg'].includes(style))?'h2':style==='t-model'?'span':'p';
+      const colorStyle=color.toLowerCase()!=='#000000'?`color:${color};`:'';
+      const alignStyle=talign!=='left'?`text-align:${talign};`:'';
+      textHtml+=`      <${tag} class="${style}" style="font-weight:${weight};font-family:'Noto Sans TC',sans-serif;${colorStyle}${alignStyle}${lhStyle}${mtStyle}${fsStyle}">${content}</${tag}>\n`;
+    });
+    const ptNum=parseFloat(pt);
+    const aspectRatio=ptNum?`aspect-ratio:100/${ptNum};`:'';
+    const imgH=ptNum?Math.round(ptNum*10):1200;
+    const imgSrc=forPreview&&!img?'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="60"><rect width="100" height="60" fill="%23e0e0e0"/><text x="50" y="30" text-anchor="middle" fill="%23999" font-size="10" dy=".3em">圖片</text></svg>':img;
+    const badge=forPreview?`\n    <div style="position:absolute;top:8px;left:8px;z-index:10;background:rgba(0,0,0,0.55);color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;font-family:sans-serif;pointer-events:none">第 ${i+1} 張</div>`:'';
+    const loading=i===0?'eager':'lazy';
+    const decoding=i===0?'sync':'async';
+    const fetchpri=i===0?' fetchpriority="high"':'';
+    html+=`  <div class="canvas-section" style="padding-top:${pt};${aspectRatio}">${badge}\n    <img class="background-img" src="${imgSrc}" alt="${altText}" width="1000" height="${imgH}" loading="${loading}" decoding="${decoding}"${fetchpri}>\n    <div class="text-overlay">\n      <div class="text-spacer" style="padding-top:${tpos}%;"></div>\n      <div class="text-content">\n${textHtml}      </div>\n    </div>\n  </div>\n\n`;
+  });
+  return `<div class="canvas-wrapper">\n${html}</div>`;
+}
+
+function renderPreview(){
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">${PREVIEW_CSS}</head><body style="margin:0;padding:0">${buildHTML(true)}</body></html>`;
+  let frame=document.getElementById('preview-iframe');
+  if(!frame){
+    frame=document.createElement('iframe');
+    frame.id='preview-iframe';
+    frame.style.cssText='width:100%;border:none;display:block;min-height:200px';
+    frame.scrolling='no';
+    const inner=document.getElementById('preview-inner');
+    inner.innerHTML='';inner.appendChild(frame);
+  }
+  frame.srcdoc=html;
+  frame.onload=()=>{
+    const updateHeight=()=>{
+      try{
+        const h=frame.contentDocument.body.scrollHeight;
+        if(h>0)frame.style.height=h+'px';
+      }catch(e){}
+    };
+    updateHeight();
+    setTimeout(updateHeight,300);
+    setTimeout(updateHeight,800);
+    setTimeout(updateHeight,1500);
+  };
+}
+
+// ==================== 動態 STYLE_BLOCK ====================
+function buildStyleBlock(state, includeFonts=true, includeCss=true){
+  const weights=new Set();
+  const classes=new Set();
+  const allBlocks=state?state.blocks:[];
+  allBlocks.forEach(b=>{
+    (b.texts||[]).forEach(t=>{
+      if(t.weight)weights.add(t.weight);
+      if(t.style)classes.add(t.style);
+    });
+  });
+  if(!weights.size){weights.add('500');weights.add('700');weights.add('900');}
+  if(!classes.size){['t-model','t-title-xl','t-title-lg','t-sub-lg','t-body'].forEach(c=>classes.add(c));}
+
+  const wghtParam=[...weights].sort().join(';');
+  const fontsUrl=`https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@${wghtParam}&display=swap`;
+
+  const cssMap={
+    'canvas-wrapper':`.canvas-wrapper{width:100%;max-width:1000px;margin:0 auto}`,
+    'canvas-section':`.canvas-section{width:100%;position:relative;overflow:hidden;contain:layout style!important;font-family:'Noto Sans TC',sans-serif!important;color:#000!important}`,
+    'background-img':`.background-img{position:absolute!important;top:0!important;left:0!important;width:100%!important;height:100%!important;object-fit:cover!important;z-index:1!important}`,
+    'text-overlay':`.text-overlay{position:absolute!important;top:0!important;left:0!important;right:0!important;z-index:2!important;display:flex!important;flex-direction:column!important}`,
+    'text-spacer':`.text-spacer{width:100%!important;flex-shrink:0!important}`,
+    'text-content':`.text-content{padding-left:4.8%!important;padding-right:4.8%!important;display:flex!important;flex-direction:column!important}`,
+    't-model':`.t-model{font-size:clamp(1px,4vw,40px)!important;font-weight:500!important;display:block!important;margin:0!important;padding:0!important;line-height:1.2!important;font-family:'Noto Sans TC',sans-serif!important}`,
+    't-title-xl':`.t-title-xl{font-size:clamp(1px,8vw,80px)!important;font-weight:900!important;line-height:1!important;margin:0!important;padding:0!important;font-family:'Noto Sans TC',sans-serif!important}`,
+    't-title-lg':`.t-title-lg{font-size:clamp(1px,6vw,60px)!important;font-weight:900!important;line-height:1.1!important;margin:0!important;padding:0!important;font-family:'Noto Sans TC',sans-serif!important}`,
+    't-sub-lg':`.t-sub-lg{font-size:clamp(1px,3.5vw,35px)!important;font-weight:500!important;margin:0!important;padding:0!important;font-family:'Noto Sans TC',sans-serif!important}`,
+    't-body':`.t-body{font-size:clamp(1px,3.5vw,35px)!important;font-weight:500!important;line-height:1.3!important;margin:0!important;padding:0!important;font-family:'Noto Sans TC',sans-serif!important}`
+  };
+
+  const baseKeys=['canvas-wrapper','canvas-section','background-img','text-overlay','text-spacer','text-content'];
+  const cssLines=[...baseKeys,...[...classes]].map(k=>cssMap[k]||'').filter(Boolean);
+
+  let output='';
+  if(includeFonts){
+    output+=`<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="${fontsUrl}" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="${fontsUrl}"></noscript>\n`;
+  }
+  if(includeCss){
+    output+=`<style>\n${cssLines.join('\n')}\n</style>\n`;
+  }
+  return output;
+}
+
+// ==================== 產出 ====================
+function generate(){
+  const includeFonts=document.getElementById('opt-include-fonts').checked;
+  const includeCss=document.getElementById('opt-include-css').checked;
+  const state=getState();
+  const body=buildHTML(false);
+  document.getElementById('output').value=buildStyleBlock(state,includeFonts,includeCss)+body;
+  switchTab('output');
+}
+
+function copyCode(){
+  const ta=document.getElementById('output');ta.select();document.execCommand('copy');
+  const el=document.getElementById('copied');el.style.display='inline';setTimeout(()=>el.style.display='none',2000);
+}
+
+// ==================== 批次產出 ====================
+function renderBatchList(){
+  const el=document.getElementById('batch-list');
+  el.innerHTML='';
+  projects.forEach(p=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f9f9f7;border:1px solid #e5e5e3;border-radius:6px;margin-bottom:6px';
+    const cb=document.createElement('input');cb.type='checkbox';cb.id='batch-cb-'+p.id;cb.checked=true;cb.style.cssText='width:auto;flex-shrink:0';
+    const nameEl=document.createElement('label');nameEl.htmlFor='batch-cb-'+p.id;nameEl.style.cssText='font-size:12px;font-weight:500;flex:1;cursor:pointer;margin:0;color:#1a1a1a';nameEl.textContent=p.name;
+    row.appendChild(cb);row.appendChild(nameEl);el.appendChild(row);
+  });
+}
+
+function selectAllBatch(){document.querySelectorAll('[id^="batch-cb-"]').forEach(cb=>cb.checked=true)}
+function deselectAllBatch(){document.querySelectorAll('[id^="batch-cb-"]').forEach(cb=>cb.checked=false)}
+
+function generateBatch(){
+  let result='';
+  let first=true;
+  // 收集所有選取專案的 state 合併分析
+  const selectedStates=[];
+  projects.forEach(p=>{
+    const cb=document.getElementById('batch-cb-'+p.id);
+    if(!cb||!cb.checked)return;
+    if(!p.state)return;
+    selectedStates.push(p.state);
+  });
+  if(!selectedStates.length){alert('沒有選取任何專案或專案內容為空');return;}
+  const mergedState={blocks:selectedStates.flatMap(s=>s.blocks||[])};
+  const styleBlock=buildStyleBlock(mergedState);
+  selectedStates.forEach((state,idx)=>{
+    const p=projects.find(p=>p.state===state);
+    result+=`/* ====== ${p?p.name:'專案'} ====== */\n`;
+    const body=buildHTML(false,state);
+    result+=(idx===0?styleBlock:'')+body+'\n\n';
+  });
+  document.getElementById('batch-result').value=result;
+  document.getElementById('batch-output').style.display='block';
+}
+
+function copyBatch(){
+  const ta=document.getElementById('batch-result');ta.select();document.execCommand('copy');
+  const el=document.getElementById('batch-copied');el.style.display='inline';setTimeout(()=>el.style.display='none',2000);
+}
+
+// ==================== 存取狀態 ====================
+function getState(){
+  const blocks=[];
+  document.querySelectorAll('[id^="block-"]:not([id*="-"])').forEach(()=>{});
+  const allCards=document.getElementById('blocks').querySelectorAll(':scope > .card');
+  allCards.forEach(bel=>{
+    const id=bel.id.replace('block-','');
+    const texts=[];
+    bel.querySelectorAll('[id^="text-"]').forEach(tel=>{
+      const tid=tel.id.replace('text-','');
+      texts.push({
+        style:document.getElementById('tstyle-'+tid)?.value,
+        color:document.getElementById('tcolor-'+tid)?.value,
+        custom:document.getElementById('tcustom-'+tid)?.value,
+        weight:document.getElementById('tweight-'+tid)?.value,
+        talign:document.getElementById('talign-'+tid)?.value,
+        lineHeight:document.getElementById('tlh-'+tid)?.value,
+        marginTop:document.getElementById('tmt-'+tid)?.value,
+        content:document.getElementById('tcontent-'+tid)?.value
+      });
+    });
+    blocks.push({
+      img:document.getElementById('img-'+id)?.value,
+      alt:document.getElementById('alt-'+id)?.value,
+      height:document.getElementById('height-'+id)?.value,
+      tpos:document.getElementById('tpos-'+id)?.value,
+      texts
+    });
+  });
+  return{productName:document.getElementById('product-name').value,outputType:document.getElementById('output-type').value,blocks,heightOpts,offsetOpts,styleOpts,colorOpts};
+}
+
+function loadState(state){
+  document.getElementById('product-name').value=state.productName||'';
+  document.getElementById('output-type').value=state.outputType||'full';
+  if(state.heightOpts)heightOpts=state.heightOpts;
+  if(state.offsetOpts)offsetOpts=state.offsetOpts;
+  if(state.styleOpts){
+    const vwMap={'t-model':'4vw','t-title-xl':'8vw','t-title-lg':'6vw','t-sub-lg':'3.5vw','t-body':'3.5vw'};
+    styleOpts=state.styleOpts.map(o=>({...o,vw:o.vw||vwMap[o.v]||'4vw'}));
+  }
+  if(state.colorOpts)colorOpts=state.colorOpts;
+  renderHeights();renderOffsets();renderStyles();renderColors();
+  document.getElementById('blocks').innerHTML='';
+  blockCount=0;textCount=0;
+  (state.blocks||[]).forEach(b=>{
+    addBlock();const id=blockCount;
+    if(document.getElementById('img-'+id))document.getElementById('img-'+id).value=b.img||'';
+    if(document.getElementById('alt-'+id))document.getElementById('alt-'+id).value=b.alt||'';
+    const hSel=document.getElementById('height-'+id);if(hSel)hSel.value=b.height||'120%';
+    const tposEl=document.getElementById('tpos-'+id);if(tposEl)tposEl.value=b.tpos!==undefined?b.tpos:'10';
+    const textsWrap=document.getElementById('texts-'+id);
+    if(textsWrap)textsWrap.innerHTML='';
+    (b.texts||[]).forEach(t=>{
+      addText(id);const tid=textCount;
+      const fld=(fid,val)=>{const el=document.getElementById(fid);if(el&&val!==undefined)el.value=val};
+      fld('tstyle-'+tid,t.style);fld('tweight-'+tid,t.weight);fld('talign-'+tid,t.talign);
+      fld('tcolor-'+tid,t.color);fld('tcustom-'+tid,t.custom);fld('tlh-'+tid,t.lineHeight);fld('tmt-'+tid,t.marginTop);fld('tcontent-'+tid,t.content);
+      toggleCustom(tid);
+    });
+  });
+  (state.blocks||[]).forEach((_,i)=>{updateMarginLabels(i+1)});
+  renderPreview();
+}
+
+function exportJSON(){
+  const blob=new Blob([JSON.stringify({projects},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='shopline-projects.json';a.click();
+}
+
+function importJSON(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const data=JSON.parse(ev.target.result);
+      if(data.projects){projects=data.projects;currentProjectId=projects[0]?.id;saveProjects();renderProjectList();loadProject(currentProjectId);renderBatchList();}
+      else if(data.blocks){loadState(data);autoSave();}
+    }catch(err){alert('JSON 格式錯誤');}
+  };
+  reader.readAsText(file);
+}
+
+function manualSave(){
+  autoSave();
+  const btn=document.getElementById('save-btn');
+  btn.textContent='已儲存';btn.style.color='#2a9';
+  setTimeout(()=>{btn.textContent='儲存';btn.style.color='';},1500);
+}
+
+// ==================== Tab ====================
+function switchTab(name){
+  document.querySelectorAll('.tab,.tab-content').forEach(el=>el.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  document.querySelectorAll('.tab').forEach((t,i)=>{if(['edit','options','batch','output'][i]===name)t.classList.add('active')});
+  if(name==='batch')renderBatchList();
+}
+
+// ==================== 初始化 ====================
+renderHeights();renderOffsets();renderStyles();renderColors();
+loadProjects();
+</script>
+</body>
+</html>
