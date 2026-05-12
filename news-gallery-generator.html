@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>最新消息產生器</title>
+<style>
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; font-family: 'Noto Sans TC', system-ui, sans-serif; font-size: 13px; background: #f0f0ee; color: #252525; }
+
+.app { display: flex; height: 100vh; overflow: hidden; }
+
+.sidebar { width: 200px; min-width: 200px; background: #1a1a1a; color: #fff; display: flex; flex-direction: column; overflow: hidden; }
+.sidebar-header { padding: 16px 14px 12px; border-bottom: 1px solid #333; }
+.sidebar-header h1 { font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+.btn-new-project { width: 100%; font-size: 12px; padding: 7px; border: 1px solid #444; border-radius: 6px; background: transparent; cursor: pointer; color: #ccc; }
+.btn-new-project:hover { background: #333; color: #fff; }
+.project-list { flex: 1; overflow-y: auto; padding: 8px; }
+.project-item { padding: 8px 10px; border-radius: 6px; cursor: pointer; margin-bottom: 2px; display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+.project-item:hover { background: #2a2a2a; }
+.project-item.active { background: #333; }
+.project-name-input { font-size: 12px; background: transparent; border: none; color: #fff; width: 100%; outline: none; padding: 0; cursor: pointer; }
+.project-item.active .project-name-input { cursor: text; }
+.project-del { font-size: 10px; padding: 2px 5px; border: 1px solid #444; border-radius: 4px; background: transparent; cursor: pointer; color: #666; flex-shrink: 0; }
+.project-del:hover { color: #f66; border-color: #f66; }
+.sidebar-actions { padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #333; }
+.btn-sidebar { padding: 7px 10px; background: transparent; color: #ccc; border: 1px solid #444; border-radius: 6px; cursor: pointer; font-size: 12px; text-align: left; }
+.btn-sidebar:hover { background: #333; color: #fff; }
+
+.editor { width: 340px; min-width: 300px; background: #fff; border-right: 1px solid #e0e0de; display: flex; flex-direction: column; overflow: hidden; }
+.editor-header { padding: 12px 16px; border-bottom: 1px solid #e0e0de; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.editor-project-name { font-size: 13px; font-weight: 600; color: #252525; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+.editor-tabs { display: flex; border-bottom: 1px solid #e0e0de; background: #fafaf8; }
+.editor-tab { flex: 1; padding: 10px 4px; text-align: center; cursor: pointer; font-size: 12px; color: #777; border-bottom: 2px solid transparent; transition: all .15s; }
+.editor-tab.active { color: #252525; font-weight: 700; border-bottom-color: #252525; background: #fff; }
+.editor-body { flex: 1; overflow-y: auto; padding: 14px; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.section { margin-bottom: 16px; }
+.section-label { font-size: 11px; font-weight: 700; color: #888; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 8px; }
+label { display: block; font-size: 11px; color: #666; margin-bottom: 3px; }
+input[type=text], input[type=url], input[type=number], select, textarea {
+  width: 100%; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px;
+  font-size: 12px; color: #252525; background: #fff; outline: none;
+}
+input:focus, select:focus, textarea:focus { border-color: #252525; }
+textarea { resize: vertical; min-height: 60px; }
+.mb8 { margin-bottom: 8px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.divider { border: none; border-top: 1px solid #eee; margin: 14px 0; }
+.badge-lang { background: #e0e0de; color: #666; font-size: 10px; padding: 1px 5px; border-radius: 3px; margin-left: 4px; }
+
+.btn-add { width: 100%; padding: 8px; background: #f5f5f3; border: 1px dashed #bbb; border-radius: 5px; cursor: pointer; font-size: 12px; color: #555; margin-top: 6px; }
+.btn-add:hover { background: #eee; }
+.btn-del { padding: 3px 8px; background: #fee; border: 1px solid #fcc; border-radius: 3px; color: #c33; font-size: 11px; cursor: pointer; }
+.btn-del:hover { background: #fcc; }
+.btn-move { padding: 3px 7px; background: #f5f5f3; border: 1px solid #ddd; border-radius: 3px; font-size: 11px; cursor: pointer; }
+.btn-move:hover { background: #eee; }
+
+.card-item { background: #fafaf8; border: 1px solid #e5e5e3; border-radius: 6px; padding: 10px; margin-bottom: 8px; }
+.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.card-num { font-size: 11px; font-weight: 700; color: #888; }
+.card-actions { display: flex; gap: 4px; }
+
+.color-row { display: flex; gap: 6px; align-items: center; }
+.color-row input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; }
+.color-row input[type=text] { flex: 1; }
+
+.img-preview-wrap { margin-top: 4px; }
+.img-preview { width: 100%; height: 70px; object-fit: cover; border-radius: 4px; border: 1px solid #eee; display: none; }
+.img-preview.show { display: block; }
+
+.preview-area { background: #e8e8e6; padding: 24px; display: flex; flex-direction: column; align-items: center; flex: 1; overflow: hidden; }
+.preview-toolbar { width: 100%; max-width: 1100px; display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.preview-toolbar span { font-size: 12px; color: #555; }
+.preview-frame-wrap { width: 100%; max-width: 1100px; background: #fff; border-radius: 8px; overflow-y: auto; overflow-x: hidden; max-height: calc(100vh - 100px); box-shadow: 0 2px 12px rgba(0,0,0,0.1); transition: max-width .3s; }
+.preview-frame-wrap.mobile { max-width: 390px; }
+.btn-copy { padding: 6px 14px; background: #252525; color: #eee; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.btn-copy:hover { background: #444; }
+.btn-sm { padding: 5px 10px; background: #fff; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.btn-sm:hover { background: #f0f0ee; }
+
+.output-box { font-family: 'Courier New', monospace; font-size: 11px; background: #f4f4f2; border: 1px solid #e0e0de; border-radius: 6px; padding: 12px; resize: vertical; min-height: 160px; line-height: 1.5; width: 100%; }
+.copy-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.copied { font-size: 12px; color: #2a9; display: none; }
+.btn-primary { width: 100%; padding: 8px 14px; background: #252525; color: #eee; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.btn-primary:hover { background: #444; }
+.btn { padding: 6px 14px; background: #f5f5f3; color: #333; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.btn:hover { background: #eee; }
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ══ 左側：專案列表 ══ -->
+<div class="sidebar">
+  <div class="sidebar-header">
+    <h1>專案</h1>
+    <button class="btn-new-project" onclick="newProject()">＋ 新增專案</button>
+  </div>
+  <div class="project-list" id="project-list"></div>
+  <div class="sidebar-actions">
+    <button class="btn-sidebar" onclick="duplicateProject()">複製目前</button>
+    <hr style="border-color:#333;margin:2px 0">
+    <button class="btn-sidebar" onclick="exportJSON()">匯出 JSON</button>
+    <label class="btn-sidebar" style="cursor:pointer">匯入 JSON<input type="file" accept=".json" style="display:none" onchange="importJSON(event)"></label>
+  </div>
+</div>
+
+<!-- ══ 中欄：操作區 ══ -->
+<div class="editor">
+  <div class="editor-header">
+    <span id="current-project-name" class="editor-project-name">未命名專案</span>
+    <button class="btn btn-sm" onclick="manualSave()" id="save-btn">儲存</button>
+  </div>
+  <div class="editor-tabs">
+    <div class="editor-tab active" onclick="switchEditorTab('content',this)">內容</div>
+    <div class="editor-tab" onclick="switchEditorTab('style',this)">樣式</div>
+    <div class="editor-tab" onclick="switchEditorTab('output',this)">產出</div>
+  </div>
+
+  <div class="editor-body">
+
+    <!-- ===== 內容 Tab ===== -->
+    <div class="tab-content active" id="tab-content">
+
+      <!-- 區塊標題 -->
+      <div class="section">
+        <div class="section-label">區塊標題</div>
+        <div class="mb8">
+          <label>標題文字</label>
+          <input type="text" id="s-title-text" value="最新消息" oninput="debouncedUpdate()">
+        </div>
+        <div class="mb8">
+          <label>標題層級（SEO）</label>
+          <select id="s-title-tag" onchange="debouncedUpdate()">
+            <option value="h1">H1</option>
+            <option value="h2" selected>H2</option>
+            <option value="h3">H3</option>
+            <option value="h4">H4</option>
+            <option value="h5">H5</option>
+          </select>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <!-- 卡片列表 -->
+      <div class="section">
+        <div class="section-label">卡片列表</div>
+        <div id="cards-list"></div>
+        <button class="btn-add" onclick="addCard()">＋ 新增卡片</button>
+      </div>
+
+      <hr class="divider">
+
+      <!-- CTA 尾卡 -->
+      <div class="section">
+        <div class="section-label">尾卡（固定置尾）</div>
+        <div class="mb8">
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer">
+            <input type="checkbox" id="cta-enabled" onchange="syncCta();debouncedUpdate()">
+            啟用尾卡
+          </label>
+        </div>
+        <div style="font-size:11px;color:#888;margin-bottom:8px">尾卡寬度為一般卡片的 1/6，顯示 Icon + 文字，強制排最後。</div>
+        <div id="cta-fields" style="display:none">
+          <div class="mb8">
+            <label>Icon 圖片網址</label>
+            <input type="url" id="cta-icon-url" placeholder="https://...（圖示 URL）" oninput="syncCta();debouncedUpdate()">
+            <div class="img-preview-wrap"><img id="cta-icon-preview" class="img-preview" style="height:48px;object-fit:contain;" onerror="this.classList.remove('show')"></div>
+          </div>
+          <div class="mb8">
+            <label>Icon Alt</label>
+            <input type="text" id="cta-icon-alt" placeholder="圖示說明文字" oninput="syncCta();debouncedUpdate()">
+          </div>
+          <div class="grid2 mb8">
+            <div>
+              <label>文字層級（SEO）</label>
+              <select id="cta-title-tag" onchange="syncCta();debouncedUpdate()">
+                <option value="h1">H1</option><option value="h2">H2</option>
+                <option value="h3" selected>H3</option><option value="h4">H4</option><option value="h5">H5</option>
+              </select>
+            </div>
+            <div>
+              <label>連結 href</label>
+              <input type="url" id="cta-href" value="#" oninput="syncCta();debouncedUpdate()">
+            </div>
+          </div>
+          <div class="mb8">
+            <label>文字內容</label>
+            <input type="text" id="cta-title-text" placeholder="查看更多" oninput="syncCta();debouncedUpdate()">
+          </div>
+          <div class="mb8">
+            <label>aria-label（連結說明）</label>
+            <input type="text" id="cta-alt" placeholder="查看全部最新消息" oninput="syncCta();debouncedUpdate()">
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ===== 樣式 Tab ===== -->
+    <div class="tab-content" id="tab-style">
+
+      <div class="section">
+        <div class="section-label">整體版面</div>
+        <div class="mb8">
+          <label>背景底色</label>
+          <div class="color-row">
+            <input type="color" id="s-bg" value="#f4f4f4" oninput="syncColorText('s-bg','s-bg-txt');debouncedUpdate()">
+            <input type="text" id="s-bg-txt" value="#f4f4f4" oninput="syncColorPicker('s-bg-txt','s-bg');debouncedUpdate()">
+          </div>
+        </div>
+        <div class="mb8">
+          <label>區塊上下內距（px）</label>
+          <input type="number" id="s-pad-v" value="60" min="0" oninput="debouncedUpdate()">
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">區塊標題樣式</div>
+        <div class="grid2">
+          <div>
+            <label>字級（rem × font-size-title）</label>
+            <input type="number" id="s-title-size" value="2.4" min="1" step="0.1" oninput="debouncedUpdate()">
+          </div>
+          <div>
+            <label>字重</label>
+            <select id="s-title-weight" onchange="debouncedUpdate()">
+              <option value="400" selected>400 Normal</option>
+              <option value="600">600 Semi</option>
+              <option value="700">700 Bold</option>
+            </select>
+          </div>
+        </div>
+        <div class="mb8">
+          <label>標題顏色</label>
+          <div class="color-row">
+            <input type="color" id="s-title-color" value="#333333" oninput="syncColorText('s-title-color','s-title-color-txt');debouncedUpdate()">
+            <input type="text" id="s-title-color-txt" value="#333333" oninput="syncColorPicker('s-title-color-txt','s-title-color');debouncedUpdate()">
+          </div>
+        </div>
+        <div class="mb8">
+          <label>標題下方間距（px）</label>
+          <input type="number" id="s-title-mb" value="24" min="0" oninput="debouncedUpdate()">
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">卡片樣式</div>
+        <div class="mb8">
+          <label>卡片圓角（px）</label>
+          <input type="number" id="s-card-radius" value="8" min="0" oninput="debouncedUpdate()">
+        </div>
+        <div class="mb8">
+          <label>邊框顏色</label>
+          <div class="color-row">
+            <input type="color" id="s-border-color" value="#BABABA" oninput="syncColorText('s-border-color','s-border-color-txt');debouncedUpdate()">
+            <input type="text" id="s-border-color-txt" value="#BABABA" oninput="syncColorPicker('s-border-color-txt','s-border-color');debouncedUpdate()">
+          </div>
+        </div>
+        <div class="mb8">
+          <label>邊框粗細（px，0 = 不顯示）</label>
+          <input type="number" id="s-border-w" value="1.2" min="0" step="0.1" oninput="debouncedUpdate()">
+        </div>
+        <div class="mb8">
+          <label>卡片白底色</label>
+          <div class="color-row">
+            <input type="color" id="s-card-bg" value="#ffffff" oninput="syncColorText('s-card-bg','s-card-bg-txt');debouncedUpdate()">
+            <input type="text" id="s-card-bg-txt" value="#ffffff" oninput="syncColorPicker('s-card-bg-txt','s-card-bg');debouncedUpdate()">
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">卡片文字</div>
+        <div class="grid2">
+          <div>
+            <label>標題字級（px）</label>
+            <input type="number" id="s-card-title-size" value="18" min="10" oninput="debouncedUpdate()">
+          </div>
+          <div>
+            <label>描述字級（px）</label>
+            <input type="number" id="s-card-desc-size" value="14" min="10" oninput="debouncedUpdate()">
+          </div>
+        </div>
+        <div class="mb8">
+          <label>標題顏色</label>
+          <div class="color-row">
+            <input type="color" id="s-card-title-color" value="#333333" oninput="syncColorText('s-card-title-color','s-card-title-color-txt');debouncedUpdate()">
+            <input type="text" id="s-card-title-color-txt" value="#333333" oninput="syncColorPicker('s-card-title-color-txt','s-card-title-color');debouncedUpdate()">
+          </div>
+        </div>
+        <div class="mb8">
+          <label>描述／日期顏色</label>
+          <div class="color-row">
+            <input type="color" id="s-card-desc-color" value="#666666" oninput="syncColorText('s-card-desc-color','s-card-desc-color-txt');debouncedUpdate()">
+            <input type="text" id="s-card-desc-color-txt" value="#666666" oninput="syncColorPicker('s-card-desc-color-txt','s-card-desc-color');debouncedUpdate()">
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">電腦版卡片尺寸</div>
+        <div class="mb8">
+          <label>卡片寬度（clamp：最小px, vw, 最大px）</label>
+          <div class="grid2">
+            <div><label>最小（px）</label><input type="number" id="s-card-w-min" value="340" min="200" oninput="debouncedUpdate()"></div>
+            <div><label>最大（px）</label><input type="number" id="s-card-w-max" value="520" min="200" oninput="debouncedUpdate()"></div>
+          </div>
+          <div><label>中間值（vw）</label><input type="number" id="s-card-w-vw" value="42" min="10" max="100" oninput="debouncedUpdate()"></div>
+        </div>
+        <div class="grid2">
+          <div><label>比例寬</label><input type="number" id="s-card-ratio-w" value="520" min="1" oninput="debouncedUpdate()"></div>
+          <div><label>比例高</label><input type="number" id="s-card-ratio-h" value="300" min="1" oninput="debouncedUpdate()"></div>
+        </div>
+        <div style="font-size:11px;color:#888;margin-top:2px">圖片以這比例為主，超過則縮放至滿版。</div>
+        <div class="mb8" style="margin-top:8px">
+          <label>圖片區寬度比例（flex，預設 60%）</label>
+          <input type="number" id="s-desktop-img-flex" value="60" min="20" max="80" oninput="debouncedUpdate()">
+          <div style="font-size:11px;color:#888;margin-top:2px">文字區 = 100% − 此值%</div>
+        </div>
+        <div class="mb8">
+          <label>文字區最小高度（px，0 = 不限）</label>
+          <input type="number" id="s-desktop-content-min-h" value="0" min="0" oninput="debouncedUpdate()">
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">手機版卡片</div>
+        <div class="grid2">
+          <div><label>寬度（%）</label><input type="number" id="s-mobile-w" value="80" min="40" max="100" oninput="debouncedUpdate()"></div>
+          <div><label>高寬比（高/寬）</label><input type="number" id="s-mobile-ratio" value="0.6" min="0.3" max="2" step="0.05" oninput="debouncedUpdate()"></div>
+        </div>
+        <div class="mb8" style="margin-top:8px">
+          <label>圖片區高度比例（flex，預設 60%）</label>
+          <input type="number" id="s-mobile-img-flex" value="60" min="20" max="80" oninput="debouncedUpdate()">
+          <div style="font-size:11px;color:#888;margin-top:2px">文字區 = 100% − 此值%</div>
+        </div>
+        <div class="mb8">
+          <label>文字區最小高度（px，0 = 不限）</label>
+          <input type="number" id="s-mobile-content-min-h" value="0" min="0" oninput="debouncedUpdate()">
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">Badge 圖示</div>
+        <div class="grid2">
+          <div><label>大小（px）</label><input type="number" id="s-badge-size" value="33" min="16" oninput="debouncedUpdate()"></div>
+          <div><label>距卡片間距（px）</label><input type="number" id="s-badge-bottom" value="12" min="0" oninput="debouncedUpdate()"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">電腦版間距</div>
+        <div class="grid2">
+          <div><label>卡片間距（px）</label><input type="number" id="s-desktop-gap" value="9" min="0" oninput="debouncedUpdate()"></div>
+          <div><label>手機版間距（px）</label><input type="number" id="s-mobile-gap" value="6" min="0" oninput="debouncedUpdate()"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ===== 產出 Tab ===== -->
+    <div class="tab-content" id="tab-output">
+      <div class="section">
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
+          <label style="font-size:12px;display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="opt-include-font" checked>
+            輸出字體載入（Shopline 已有 Noto Sans TC 可取消）
+          </label>
+          <label style="font-size:12px;display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="opt-include-css" checked>
+            輸出 CSS（同頁面多個區塊只需第一個勾選）
+          </label>
+        </div>
+        <button class="btn-primary" onclick="generate()" style="margin-bottom:12px">產生程式碼</button>
+        <textarea class="output-box" id="output" readonly placeholder="按上方「產生程式碼」後顯示"></textarea>
+        <div class="copy-row">
+          <button class="btn" onclick="copyCode()">複製</button>
+          <span class="copied" id="copied">已複製！</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- editor-body -->
+</div><!-- editor -->
+
+<!-- ══ 右欄：預覽 ══ -->
+<div class="preview-area">
+  <div class="preview-toolbar">
+    <span>預覽</span>
+    <button class="btn btn-sm" onclick="renderPreview()">重整</button>
+    <select id="preview-size" style="width:auto;font-size:12px" onchange="togglePreviewSize()">
+      <option value="desktop">桌面版</option>
+      <option value="mobile">手機版</option>
+    </select>
+    <button class="btn-copy" onclick="generate()" style="margin-left:auto">產生程式碼</button>
+  </div>
+  <div class="preview-frame-wrap" id="preview-frame-wrap">
+    <div id="preview-inner"></div>
+  </div>
+</div>
+
+</div><!-- app -->
+
+<script>
+var projects = [];
+var currentProjectId = null;
+var cardList = [];
+var cardIdCounter = 0;
+
+var LS_KEY = 'news_gallery_generator_v1';
+
+function defaultCard(){
+  var id = 'c' + (++cardIdCounter);
+  return {
+    id: id,
+    badgeUrl: '',
+    imgUrl: '',
+    imgAlt: '',
+    titleTag: 'h3',
+    titleText: '卡片標題',
+    date: new Date().toISOString().slice(0,10).replace(/-/g,'.'),
+    desc: '在這裡填入說明文字。',
+    href: '#'
+  };
+}
+
+function defaultProject(){
+  var id = 'p' + Date.now();
+  return {
+    id: id,
+    name: '新專案',
+    cards: [defaultCard(), defaultCard()],
+    cardIdCounter: 2,
+    style: {}
+  };
+}
+
+function saveProjects(){
+  try { localStorage.setItem(LS_KEY, JSON.stringify({ projects, currentProjectId })); } catch(e){}
+}
+function loadFromLS(){
+  try {
+    var raw = localStorage.getItem(LS_KEY);
+    if(!raw) return false;
+    var data = JSON.parse(raw);
+    if(data.projects && data.projects.length){
+      projects = data.projects;
+      currentProjectId = data.currentProjectId || projects[0].id;
+      return true;
+    }
+  } catch(e){}
+  return false;
+}
+
+function newProject(){
+  var p = defaultProject();
+  p.name = '專案 ' + (projects.length + 1);
+  projects.push(p);
+  currentProjectId = p.id;
+  saveProjects();
+  renderProjectList();
+  loadProject(p.id);
+}
+
+function duplicateProject(){
+  var p = getCurrentProject();
+  if(!p) return;
+  var copy = JSON.parse(JSON.stringify(p));
+  copy.id = 'p' + Date.now();
+  copy.name = p.name + '（複製）';
+  projects.push(copy);
+  currentProjectId = copy.id;
+  saveProjects();
+  renderProjectList();
+  loadProject(copy.id);
+}
+
+function deleteProject(){
+  if(projects.length <= 1){ alert('至少保留一個專案'); return; }
+  if(!confirm('確定刪除此專案？')) return;
+  projects = projects.filter(function(p){ return p.id !== currentProjectId; });
+  currentProjectId = projects[0].id;
+  saveProjects();
+  renderProjectList();
+  loadProject(currentProjectId);
+}
+
+function getCurrentProject(){
+  return projects.find(p => p.id === currentProjectId) || null;
+}
+
+function renderProjectList(){
+  var el = document.getElementById('project-list');
+  el.innerHTML = '';
+  projects.forEach(function(p) {
+    var item = document.createElement('div');
+    item.className = 'project-item' + (p.id === currentProjectId ? ' active' : '');
+    item.onclick = function(){ switchProject(p.id); };
+
+    var nameEl = document.createElement('input');
+    nameEl.className = 'project-name-input';
+    nameEl.value = p.name;
+    nameEl.onclick = function(e){ e.stopPropagation(); };
+    nameEl.oninput = function(e){ p.name = e.target.value; saveProjects(); };
+
+    var del = document.createElement('button');
+    del.className = 'project-del';
+    del.textContent = '✕';
+    del.onclick = function(e){
+      e.stopPropagation();
+      if(projects.length <= 1){ alert('至少保留一個專案'); return; }
+      if(!confirm('確定刪除此專案？')) return;
+      projects = projects.filter(function(x){ return x.id !== p.id; });
+      if(currentProjectId === p.id) currentProjectId = projects[0].id;
+      saveProjects();
+      renderProjectList();
+      loadProject(currentProjectId);
+    };
+
+    item.appendChild(nameEl);
+    item.appendChild(del);
+    el.appendChild(item);
+  });
+}
+
+function switchProject(id){
+  if(id === currentProjectId) return;
+  saveCurrentProject();
+  currentProjectId = id;
+  saveProjects();
+  renderProjectList();
+  loadProject(id);
+}
+function renameProject(id, name){
+  var p = projects.find(function(x){ return x.id === id; });
+  if(p){ p.name = name; saveProjects(); }
+  if(id === currentProjectId){
+    var nameEl = document.getElementById('current-project-name');
+    if(nameEl) nameEl.textContent = name || '未命名專案';
+  }
+}
+
+function saveCurrentProject(){
+  var p = getCurrentProject();
+  if(!p) return;
+  p.cards = JSON.parse(JSON.stringify(cardList));
+  p.cardIdCounter = cardIdCounter;
+  p.style = readStyle();
+  p.titleText = rv('s-title-text');
+  p.titleTag  = rv('s-title-tag');
+  if(!p.cta) p.cta = {};
+  p.cta.enabled   = document.getElementById('cta-enabled') ? document.getElementById('cta-enabled').checked : false;
+  p.cta.iconUrl   = rv('cta-icon-url');
+  p.cta.iconAlt   = rv('cta-icon-alt');
+  p.cta.titleTag  = rv('cta-title-tag');
+  p.cta.titleText = rv('cta-title-text');
+  p.cta.href      = rv('cta-href');
+  p.cta.alt       = rv('cta-alt');
+}
+
+function loadProject(id){
+  var p = projects.find(x => x.id === id);
+  if(!p) return;
+  cardList = JSON.parse(JSON.stringify(p.cards || []));
+  cardIdCounter = p.cardIdCounter || cardList.length;
+  var s = p.style || {};
+  var pairs = [
+    ['s-title-text', p.titleText || '最新消息'],
+    ['s-title-tag',  p.titleTag  || 'h2'],
+    ['s-bg',         s.bg        || '#f4f4f4'],
+    ['s-bg-txt',     s.bg        || '#f4f4f4'],
+    ['s-pad-v',      s.padV      ?? 60],
+    ['s-title-size', s.titleSize ?? 2.4],
+    ['s-title-weight',s.titleWeight || '400'],
+    ['s-title-color',s.titleColor || '#333333'],
+    ['s-title-color-txt', s.titleColor || '#333333'],
+    ['s-title-mb',   s.titleMb   ?? 24],
+    ['s-card-radius',s.cardRadius ?? 8],
+    ['s-border-color',s.borderColor || '#BABABA'],
+    ['s-border-color-txt', s.borderColor || '#BABABA'],
+    ['s-border-w',   s.borderW   ?? 1.2],
+    ['s-card-bg',    s.cardBg    || '#ffffff'],
+    ['s-card-bg-txt',s.cardBg    || '#ffffff'],
+    ['s-card-title-size', s.cardTitleSize ?? 18],
+    ['s-card-desc-size',  s.cardDescSize  ?? 14],
+    ['s-card-title-color',s.cardTitleColor || '#333333'],
+    ['s-card-title-color-txt', s.cardTitleColor || '#333333'],
+    ['s-card-desc-color',s.cardDescColor || '#666666'],
+    ['s-card-desc-color-txt', s.cardDescColor || '#666666'],
+    ['s-card-w-min', s.cardWMin  ?? 340],
+    ['s-card-w-max', s.cardWMax  ?? 520],
+    ['s-card-w-vw',  s.cardWVw   ?? 42],
+    ['s-card-ratio-w',s.cardRatioW ?? 520],
+    ['s-card-ratio-h',s.cardRatioH ?? 300],
+    ['s-mobile-w',   s.mobileW   ?? 80],
+    ['s-mobile-ratio',s.mobileRatio ?? 0.6],
+    ['s-desktop-img-flex',      s.desktopImgFlex      ?? 60],
+    ['s-desktop-content-min-h', s.desktopContentMinH  ?? 0],
+    ['s-mobile-img-flex',       s.mobileImgFlex       ?? 60],
+    ['s-mobile-content-min-h',  s.mobileContentMinH   ?? 0],
+    ['s-badge-size', s.badgeSize ?? 33],
+    ['s-badge-bottom',s.badgeBottom ?? 12],
+    ['s-desktop-gap',s.desktopGap ?? 9],
+    ['s-mobile-gap', s.mobileGap ?? 6],
+  ];
+  pairs.forEach(([id, v]) => sv(id, v));
+  var nameEl = document.getElementById('current-project-name');
+  if(nameEl) nameEl.textContent = p.name || '未命名專案';
+  loadCta(p.cta);
+  renderCardList();
+  renderPreview();
+}
+
+function rv(id){ var el = document.getElementById(id); return el ? el.value : ''; }
+function sv(id, v){ var el = document.getElementById(id); if(el && v !== undefined && v !== null) el.value = v; }
+
+function readStyle(){
+  return {
+    bg:            rv('s-bg'),
+    padV:          +rv('s-pad-v'),
+    titleSize:     +rv('s-title-size'),
+    titleWeight:   rv('s-title-weight'),
+    titleColor:    rv('s-title-color'),
+    titleMb:       +rv('s-title-mb'),
+    cardRadius:    +rv('s-card-radius'),
+    borderColor:   rv('s-border-color'),
+    borderW:       +rv('s-border-w'),
+    cardBg:        rv('s-card-bg'),
+    cardTitleSize: +rv('s-card-title-size'),
+    cardDescSize:  +rv('s-card-desc-size'),
+    cardTitleColor:rv('s-card-title-color'),
+    cardDescColor: rv('s-card-desc-color'),
+    cardWMin:      +rv('s-card-w-min'),
+    cardWMax:      +rv('s-card-w-max'),
+    cardWVw:          +rv('s-card-w-vw'),
+    cardRatioW:       +rv('s-card-ratio-w'),
+    cardRatioH:       +rv('s-card-ratio-h'),
+    desktopImgFlex:   +rv('s-desktop-img-flex') || 60,
+    desktopContentMinH: +rv('s-desktop-content-min-h') || 0,
+    mobileW:          +rv('s-mobile-w'),
+    mobileRatio:      +rv('s-mobile-ratio'),
+    mobileImgFlex:    +rv('s-mobile-img-flex') || 60,
+    mobileContentMinH: +rv('s-mobile-content-min-h') || 0,
+    badgeSize:     +rv('s-badge-size'),
+    badgeBottom:   +rv('s-badge-bottom'),
+    desktopGap:    +rv('s-desktop-gap'),
+    mobileGap:     +rv('s-mobile-gap'),
+  };
+}
+
+function syncColorText(pickerId, textId){
+  var p = document.getElementById(pickerId);
+  var t = document.getElementById(textId);
+  if(p && t) t.value = p.value;
+}
+function syncColorPicker(textId, pickerId){
+  var t = document.getElementById(textId);
+  var p = document.getElementById(pickerId);
+  if(t && p && /^#[0-9a-fA-F]{6}$/.test(t.value)) p.value = t.value;
+}
+
+function syncCta(){
+  var p = getCurrentProject();
+  if(!p) return;
+  if(!p.cta) p.cta = {};
+  p.cta.enabled   = document.getElementById('cta-enabled') && document.getElementById('cta-enabled').checked;
+  p.cta.iconUrl   = rv('cta-icon-url');
+  p.cta.iconAlt   = rv('cta-icon-alt');
+  p.cta.titleTag  = rv('cta-title-tag');
+  p.cta.titleText = rv('cta-title-text');
+  p.cta.href      = rv('cta-href');
+  p.cta.alt       = rv('cta-alt');
+  var fields = document.getElementById('cta-fields');
+  if(fields) fields.style.display = p.cta.enabled ? 'block' : 'none';
+  var prev = document.getElementById('cta-icon-preview');
+  if(prev){ prev.src = p.cta.iconUrl || ''; prev.classList.toggle('show', !!p.cta.iconUrl); }
+}
+
+function loadCta(cta){
+  cta = cta || {};
+  var cb = document.getElementById('cta-enabled');
+  if(cb) cb.checked = !!cta.enabled;
+  sv('cta-icon-url',   cta.iconUrl   || '');
+  sv('cta-icon-alt',   cta.iconAlt   || '');
+  sv('cta-title-tag',  cta.titleTag  || 'h3');
+  sv('cta-title-text', cta.titleText || '');
+  sv('cta-href',       cta.href      || '#');
+  sv('cta-alt',        cta.alt       || '');
+  var prev = document.getElementById('cta-icon-preview');
+  if(prev){ prev.src = cta.iconUrl || ''; prev.classList.toggle('show', !!cta.iconUrl); }
+  var fields = document.getElementById('cta-fields');
+  if(fields) fields.style.display = cta.enabled ? 'block' : 'none';
+}
+
+function addCard(){
+  cardList.push(defaultCard());
+  renderCardList();
+  debouncedUpdate();
+}
+
+function removeCard(id){
+  cardList = cardList.filter(c => c.id !== id);
+  renderCardList();
+  debouncedUpdate();
+}
+
+function moveCard(id, dir){
+  var idx = cardList.findIndex(c => c.id === id);
+  if(dir === 'up' && idx > 0){
+    [cardList[idx-1], cardList[idx]] = [cardList[idx], cardList[idx-1]];
+  } else if(dir === 'down' && idx < cardList.length-1){
+    [cardList[idx], cardList[idx+1]] = [cardList[idx+1], cardList[idx]];
+  }
+  renderCardList();
+  debouncedUpdate();
+}
+
+function syncCardFromDOM(id){
+  var c = cardList.find(x => x.id === id);
+  if(!c) return;
+  c.badgeUrl  = rv('c-badge-url-' + id);
+  c.imgUrl    = rv('c-img-url-' + id);
+  c.imgAlt    = rv('c-img-alt-' + id);
+  c.titleTag  = rv('c-title-tag-' + id);
+  c.titleText = rv('c-title-' + id);
+  c.date      = rv('c-date-' + id);
+  c.desc      = rv('c-desc-' + id);
+  c.href      = rv('c-href-' + id);
+}
+
+function syncAllCards(){
+  cardList.forEach(c => syncCardFromDOM(c.id));
+}
+
+function esc(s){ return (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+function renderCardList(){
+  var container = document.getElementById('cards-list');
+  container.innerHTML = '';
+  cardList.forEach((c, idx) => {
+    var div = document.createElement('div');
+    div.className = 'card-item';
+    var s = readStyle();
+    var rW = s.cardRatioW, rH = s.cardRatioH;
+    var desktopH = Math.round(s.cardWMax * rH / rW);
+    var mobileH  = Math.round(390 * s.mobileRatio * (s.mobileImgFlex / 100));
+
+    div.innerHTML = `
+      <div class="card-header">
+        <span class="card-num">卡片 ${idx+1}</span>
+        <div class="card-actions">
+          <button class="btn-move" onclick="moveCard('${c.id}','up')">↑</button>
+          <button class="btn-move" onclick="moveCard('${c.id}','down')">↓</button>
+          <button class="btn-del" onclick="removeCard('${c.id}')">刪除</button>
+        </div>
+      </div>
+
+      <div class="mb8">
+        <label>Badge 圖示網址</label>
+        <input type="url" id="c-badge-url-${c.id}" value="${esc(c.badgeUrl)}" placeholder="https://...圖示URL" oninput="syncCardFromDOM('${c.id}');debouncedUpdate()">
+      </div>
+
+      <div class="mb8">
+        <label>圖片網址</label>
+        <input type="url" id="c-img-url-${c.id}" value="${esc(c.imgUrl)}" placeholder="https://...圖片URL" oninput="syncCardFromDOM('${c.id}');debouncedUpdate();updateImgPreview('${c.id}')">
+        <div style="font-size:11px;color:#888;margin-top:3px">建議比例 ${rW}:${rH}（電腦約 ${s.cardWMax}×${desktopH}px，手機約 390×${mobileH}px），超過尺寸自動 object-fit:cover。</div>
+        <div class="img-preview-wrap"><img id="c-img-preview-${c.id}" class="img-preview${c.imgUrl?' show':''}" src="${esc(c.imgUrl)}" onerror="this.classList.remove('show')"></div>
+      </div>
+      <div class="mb8">
+        <label>圖片 Alt（SEO）</label>
+        <input type="text" id="c-img-alt-${c.id}" value="${esc(c.imgAlt)}" placeholder="描述圖片內容" oninput="syncCardFromDOM('${c.id}');debouncedUpdate()">
+      </div>
+
+      <div class="grid2 mb8">
+        <div>
+          <label>標題層級（SEO）</label>
+          <select id="c-title-tag-${c.id}" onchange="syncCardFromDOM('${c.id}');debouncedUpdate()">
+            ${['h1','h2','h3','h4','h5'].map(t=>`<option value="${t}"${c.titleTag===t?' selected':''}>${t.toUpperCase()}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label>日期</label>
+          <input type="text" id="c-date-${c.id}" value="${esc(c.date)}" placeholder="2026.05.01" oninput="syncCardFromDOM('${c.id}');debouncedUpdate()">
+        </div>
+      </div>
+      <div class="mb8">
+        <label>標題文字</label>
+        <input type="text" id="c-title-${c.id}" value="${esc(c.titleText)}" oninput="syncCardFromDOM('${c.id}');debouncedUpdate()">
+      </div>
+      <div class="mb8">
+        <label>描述文字</label>
+        <textarea id="c-desc-${c.id}" rows="2" oninput="syncCardFromDOM('${c.id}');debouncedUpdate()"></textarea>
+      </div>
+      <div class="mb8">
+        <label>連結網址</label>
+        <input type="url" id="c-href-${c.id}" value="${esc(c.href)}" placeholder="https://..." oninput="syncCardFromDOM('${c.id}');debouncedUpdate()">
+      </div>
+    `;
+    container.appendChild(div);
+
+    var ta = document.getElementById('c-desc-' + c.id);
+    if(ta) ta.value = c.desc || '';
+  });
+}
+
+function updateImgPreview(id){
+  var img = document.getElementById('c-img-preview-' + id);
+  var url = rv('c-img-url-' + id);
+  if(img){
+    img.src = url;
+    img.classList.toggle('show', !!url);
+  }
+}
+
+var _debTimer = null;
+function autoSave(){
+  saveCurrentProject();
+  saveProjects();
+}
+
+function manualSave(){
+  autoSave();
+  var btn = document.getElementById('save-btn');
+  if(btn){ btn.textContent = '已儲存'; btn.style.color = '#2a9'; setTimeout(function(){ btn.textContent = '儲存'; btn.style.color = ''; }, 1500); }
+}
+
+function debouncedUpdate(){
+  clearTimeout(_debTimer);
+  _debTimer = setTimeout(function(){ autoSave(); renderPreview(); }, 280);
+}
+
+function togglePreviewSize(){
+  var wrap = document.getElementById('preview-frame-wrap');
+  if(wrap) wrap.className = 'preview-frame-wrap' + (document.getElementById('preview-size').value === 'mobile' ? ' mobile' : '');
+}
+
+function renderPreview(){
+  var s = readStyle();
+  var titleText = rv('s-title-text') || '最新消息';
+  var titleTag  = rv('s-title-tag') || 'h2';
+  var cardsHtml = buildCardsHtml();
+  var css = buildCSSString(s);
+  var jsStr = buildJSString();
+  var interceptJS = "<scr"+"ipt>document.addEventListener('click',function(e){var a=e.target.closest('a');if(a)e.preventDefault();},true);<\/scr"+"ipt>";
+  var fullHtml = '<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet"><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:\'Noto Sans TC\',system-ui,sans-serif;}</style>' + css + '</head><body>' +
+    '<section id="news-block" aria-label="最新消息"><' + titleTag + ' class="news-section-title">' + titleText + '</' + titleTag + '><div class="gallery-track" id="news-slider">' + cardsHtml + '</div></section>' +
+    jsStr + interceptJS + '</body></html>';
+  var inner = document.getElementById('preview-inner');
+  var frame = document.getElementById('preview-iframe-el');
+  if(!frame){
+    inner.innerHTML = '';
+    frame = document.createElement('iframe');
+    frame.id = 'preview-iframe-el';
+    frame.style.cssText = 'width:100%;border:none;min-height:400px;display:block;';
+    inner.appendChild(frame);
+  }
+  frame.srcdoc = fullHtml;
+}
+
+function generate(){
+  syncAllCards();
+  var html = buildOutput(true);
+  document.getElementById('output').value = html;
+  switchEditorTab('output', document.querySelectorAll('.editor-tab')[2]);
+}
+
+function copyCode(){
+  var ta = document.getElementById('output');
+  ta.select();
+  try { document.execCommand('copy'); } catch(e){ navigator.clipboard && navigator.clipboard.writeText(ta.value); }
+  var el = document.getElementById('copied');
+  el.style.display = 'inline';
+  setTimeout(function(){ el.style.display = 'none'; }, 2000);
+}
+
+function buildCardsHtml(forExport){
+  return cardList.map(function(c){
+    var badge = c.badgeUrl
+      ? '\n      <div class="custom-card__badge"><img src="' + (c.badgeUrl||'') + '" alt=""></div>' : '';
+    var img = '<img src="' + (c.imgUrl||'') + '" alt="' + (c.imgAlt||'') + '">';
+    var descHtml = (c.desc||'');
+    return '\n      <a href="' + (c.href||'#') + '" class="custom-card" draggable="false">' + badge +
+      '\n        <div class="custom-card__inner">' +
+      '\n          <div class="custom-card__image">' + img + '</div>' +
+      '\n          <div class="custom-card__content">' +
+      '\n            <' + c.titleTag + ' class="custom-card__title">' + (c.titleText||'') + '</' + c.titleTag + '>' +'\n            <p class="custom-card__date">' + (c.date||'') + '</p>' +
+      '\n            <p class="custom-card__desc">' + descHtml + '</p>' +
+      '\n          </div>' +
+      '\n        </div>' +
+      '\n      </a>';
+  }).join('') +
+  buildCtaCard(forExport);
+}
+
+function buildCtaCard(forExport){
+  var p = getCurrentProject();
+  var cta = (p && p.cta) ? p.cta : {};
+  if(!cta.enabled) return '';
+
+  var iconHtml = cta.iconUrl
+    ? '<img src="' + cta.iconUrl + '" alt="' + (cta.iconAlt||'') + '" style="width:48px;height:48px;object-fit:contain;display:block;margin:10px auto 0;">'
+    : (forExport ? '' : '<div style="width:48px;height:48px;background:#ddd;border-radius:50%;margin:10px auto 0;"></div>');
+  var titleHtml = cta.titleText
+    ? '<' + (cta.titleTag||'h3') + ' class="custom-card__cta-text">' + cta.titleText + '</' + (cta.titleTag||'h3') + '>'
+    : '';
+
+  return '\n      <a href="' + (cta.href||'#') + '" class="custom-card cta-card" draggable="false"' +
+    (cta.alt ? ' aria-label="' + cta.alt + '"' : '') + '>' +
+    '\n        <div class="custom-card__inner custom-card__inner--cta">' +
+    '\n          ' + titleHtml +
+    '\n          ' + iconHtml +
+    '\n        </div>' +
+    '\n      </a>';
+}
+
+function buildCSSString(s){
+  return `<style>
+#news-block {
+  --card-radius: ${s.cardRadius}px;
+  --desktop-card-width: clamp(${s.cardWMin}px, ${s.cardWVw}vw, ${s.cardWMax}px);
+  --desktop-card-aspect-ratio: ${s.cardRatioW} / ${s.cardRatioH};
+  --mobile-card-width: ${s.mobileW}%;
+  --mobile-card-aspect-ratio: ${s.mobileRatio};
+  --page-bg: ${s.bg};
+  --bg-color: ${s.cardBg};
+  --border-color: ${s.borderColor};
+  --card-border-width: ${s.borderW}px;
+  --title-color: ${s.cardTitleColor};
+  --desc-color: ${s.cardDescColor};
+  --desktop-gap: ${s.desktopGap}px;
+  --mobile-gap: ${s.mobileGap}px;
+  --badge-size: ${s.badgeSize}px;
+  --badge-bottom: ${s.badgeBottom}px;
+  --section-title-color: ${s.titleColor};
+  --section-title-mb: ${s.titleMb}px;
+}
+#news-block, #news-block * { box-sizing: border-box; margin: 0; padding: 0; }
+#news-block { background-color: var(--page-bg); padding: ${s.padV}px 0; width: 100%; overflow-x: hidden; }
+#news-block .news-section-title { text-align: center; font-family: var(--font-family-title, inherit); font-size: calc(${s.titleSize}rem * var(--font-size-title, 1)); color: var(--section-title-color); font-weight: ${s.titleWeight}; margin: 0 0 var(--section-title-mb) 0; padding: 0; line-height: 1.3; letter-spacing: inherit; text-transform: none; border: none; background: none; }
+#news-block .gallery-track { display: flex; flex-wrap: nowrap; gap: var(--mobile-gap); width: 100%; overflow-x: auto; overflow-y: visible; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; scroll-padding: 0 15px; padding: calc(var(--badge-size) + var(--badge-bottom) + 2px) 15px 2px; scrollbar-width: none; cursor: grab; }
+#news-block .gallery-track::-webkit-scrollbar { display: none; }
+#news-block .gallery-track:active { cursor: grabbing; }
+#news-block .custom-card { flex: 0 0 var(--mobile-card-width); aspect-ratio: var(--mobile-card-aspect-ratio); scroll-snap-align: center; scroll-snap-stop: always; position: relative; margin-top: 0; text-decoration: none; user-select: none; -webkit-user-drag: none; }
+#news-block .custom-card.cta-card { order: 9999; flex: 0 0 calc(var(--mobile-card-width) / 6); }
+@media (min-width: 769px) { #news-block .custom-card.cta-card { flex: 0 0 calc(var(--desktop-card-width) / 6); } }
+#news-block .custom-card__inner--cta { flex-direction: column !important; align-items: center; justify-content: center; background-color: var(--bg-color); border: var(--card-border-width) solid var(--border-color); border-radius: var(--card-radius); width: 100%; height: 100%; padding: 12px 6px; text-align: center; text-decoration: none; }
+#news-block .custom-card__cta-text { color: var(--title-color); font-size: 12px; font-weight: 600; line-height: 1.3; word-break: break-all; padding: 0; margin: 0; border: none; background: none; }
+@media (min-width: 769px) {
+  #news-block .gallery-track { gap: var(--desktop-gap); --pc-padding: max(15px, calc((100% - (var(--desktop-card-width) * 2 + var(--desktop-gap))) / 2)); padding-left: var(--pc-padding); padding-right: var(--pc-padding); scroll-padding: 0 var(--pc-padding); }
+  #news-block .custom-card { flex: 0 0 var(--desktop-card-width); aspect-ratio: var(--desktop-card-aspect-ratio); scroll-snap-align: start; }
+  #news-block .custom-card__inner { height: 100%; }
+  #news-block .custom-card__image { flex: 0 0 ${s.desktopImgFlex}%; width: auto; aspect-ratio: unset; }
+  #news-block .custom-card__content { flex: 1; padding: 15px; justify-content: center;${s.desktopContentMinH > 0 ? ' min-height:' + s.desktopContentMinH + 'px;' : ''} }
+}
+@media (max-width: 768px) {
+  #news-block .custom-card:first-child { scroll-snap-align: start; }
+  #news-block .custom-card:last-child  { scroll-snap-align: end; }
+}
+#news-block .custom-card__badge { position: absolute; bottom: calc(100% + var(--badge-bottom)); left: 0; width: var(--badge-size); height: var(--badge-size); }
+#news-block .custom-card__badge img { width: 100%; height: 100%; object-fit: contain; display: block; }
+#news-block .custom-card__inner { width: 100%; height: 100%; background-color: var(--bg-color); border: var(--card-border-width) solid var(--border-color); border-radius: var(--card-radius); display: flex; flex-direction: column; overflow: hidden; }
+@media (min-width: 769px) { #news-block .custom-card__inner { flex-direction: row; } }
+#news-block .custom-card__image { flex: 0 0 ${s.mobileImgFlex}%; width: 100%; }
+#news-block .custom-card__image img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+#news-block .custom-card__content { flex: 1; padding: 12px; display: flex; flex-direction: column; justify-content: center;${s.mobileContentMinH > 0 ? ' min-height:' + s.mobileContentMinH + 'px;' : ''} }
+#news-block .custom-card__title { color: var(--title-color); font-size: ${s.cardTitleSize}px; font-weight: 700; margin-bottom: 8px; padding: 0; line-height: 1.4; }
+#news-block .custom-card__date { color: var(--desc-color); font-size: 12px; margin-bottom: 8px; letter-spacing: 0.03em; }
+#news-block .custom-card__desc { color: var(--desc-color); font-size: ${s.cardDescSize}px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin: 0; }
+@media (min-width: 769px) { #news-block .custom-card__content { padding: 15px; justify-content: center; } }
+</style>`;
+}
+
+function buildJSString(){
+  return `<script>
+(function() {
+  var slider = document.getElementById('news-slider');
+  if (!slider) return;
+  var isDown = false, startX = 0, scrollLeftStart = 0;
+  var isDragging = false, currentWalk = 0, itemWidth = 0;
+  var snapThreshold = 100, dragResistance = 0.6;
+  var getItemWidth = function() {
+    var first = slider.querySelector('.custom-card');
+    var gap = parseFloat(getComputedStyle(slider).gap) || 0;
+    return first ? first.offsetWidth + gap : 0;
+  };
+  slider.addEventListener('mousedown', function(e) {
+    isDown = true; isDragging = false; currentWalk = 0;
+    slider.style.scrollSnapType = 'none'; slider.style.scrollBehavior = 'auto';
+    startX = e.pageX - slider.offsetLeft; scrollLeftStart = slider.scrollLeft; itemWidth = getItemWidth();
+  });
+  var end = function() {
+    if (!isDown) return; isDown = false;
+    slider.style.scrollBehavior = 'smooth';
+    if (currentWalk < -snapThreshold) slider.scrollLeft = scrollLeftStart + itemWidth;
+    else if (currentWalk > snapThreshold) slider.scrollLeft = scrollLeftStart - itemWidth;
+    else slider.scrollLeft = scrollLeftStart;
+    setTimeout(function() { slider.style.scrollSnapType = 'x mandatory'; slider.style.scrollBehavior = 'auto'; }, 350);
+  };
+  slider.addEventListener('mousemove', function(e) {
+    if (!isDown) return; e.preventDefault();
+    var x = e.pageX - slider.offsetLeft;
+    currentWalk = (x - startX) * dragResistance;
+    if (currentWalk > itemWidth) currentWalk = itemWidth;
+    else if (currentWalk < -itemWidth) currentWalk = -itemWidth;
+    if (Math.abs(currentWalk) > 5) isDragging = true;
+    slider.scrollLeft = scrollLeftStart - currentWalk;
+  });
+  slider.addEventListener('mouseup', end);
+  slider.addEventListener('mouseleave', end);
+  slider.addEventListener('click', function(e) { if (isDragging) e.preventDefault(); });
+
+  function syncContentHeight() {
+    var contents = slider.querySelectorAll('.custom-card:not(.cta-card) .custom-card__content');
+    if (!contents.length) return;
+    if (window.innerWidth > 768) {
+      contents.forEach(function(c) { c.style.height = ''; });
+      return;
+    }
+    contents.forEach(function(c) { c.style.height = 'auto'; });
+    requestAnimationFrame(function() {
+      requestAnimationFrame(function() {
+        var maxH = 0;
+        contents.forEach(function(c) { var h = c.getBoundingClientRect().height; if (h > maxH) maxH = h; });
+        if (maxH > 0) contents.forEach(function(c) { c.style.height = Math.ceil(maxH) + 'px'; });
+      });
+    });
+  }
+  if (document.readyState === 'complete') { syncContentHeight(); }
+  else { window.addEventListener('load', syncContentHeight); }
+  slider.querySelectorAll('img').forEach(function(img) {
+    if (!img.complete) img.addEventListener('load', syncContentHeight);
+  });
+  window.addEventListener('resize', syncContentHeight);
+})();
+<\/script>`;
+}
+
+function buildOutput(full){
+  syncAllCards();
+  var s = readStyle();
+  var titleText = rv('s-title-text') || '最新消息';
+  var titleTag  = rv('s-title-tag') || 'h2';
+  var incFont = document.getElementById('opt-include-font') ? document.getElementById('opt-include-font').checked : true;
+  var incCss  = document.getElementById('opt-include-css')  ? document.getElementById('opt-include-css').checked  : true;
+  var cardsHtml = buildCardsHtml(full);
+  var css = incCss ? buildCSSString(s) : '';
+  var jsStr = buildJSString();
+  var fontLink = incFont ? '<link rel="preconnect" href="https://fonts.googleapis.com">\n<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">\n' : '';
+
+  var previewCss = buildCSSString(s); // 預覽永遠包含 CSS
+  if(full){
+    return fontLink + '\n' + css + '\n\n<section id="news-block" aria-label="最新消息">\n  <' + titleTag + ' class="news-section-title">' + titleText + '</' + titleTag + '>\n  <div class="gallery-track" id="news-slider">\n' + cardsHtml + '\n  </div>\n</section>\n' + jsStr;
+  } else {
+    return '<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet"><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:\'Noto Sans TC\',system-ui,sans-serif;}</style>' + previewCss + '</head><body style="margin:0;background:#eee;">' +
+      '<section id="news-block" aria-label="最新消息"><' + titleTag + ' class="news-section-title">' + titleText + '</' + titleTag + '><div class="gallery-track" id="news-slider">' + cardsHtml + '</div></section>' +
+      jsStr + '<scr'+'ipt>document.addEventListener(\'click\',function(e){var a=e.target.closest(\'a\');if(a)e.preventDefault();},true);<\/scr'+'ipt>' +
+      '</body></html>';
+  }
+}
+
+function exportJSON(){
+  saveCurrentProject();
+  var blob = new Blob([JSON.stringify({ projects }, null, 2)], { type: 'application/json' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'news-gallery-projects.json';
+  a.click();
+}
+
+function importJSON(e){
+  var file = e.target.files[0];
+  e.target.value = '';
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      var data = JSON.parse(ev.target.result);
+      if(data.projects && Array.isArray(data.projects) && data.projects.length){
+        projects = data.projects;
+        currentProjectId = projects[0].id;
+      } else if(data.cards || data.style){
+        var p = defaultProject();
+        if(data.cards) p.cards = data.cards;
+        if(data.style) p.style = data.style;
+        if(data.titleText) p.titleText = data.titleText;
+        if(data.titleTag)  p.titleTag  = data.titleTag;
+        p.name = file.name.replace('.json','');
+        projects = [p];
+        currentProjectId = p.id;
+      } else {
+        alert('找不到可匯入的資料，請確認格式正確');
+        return;
+      }
+      saveProjects();
+      renderProjectList();
+      loadProject(currentProjectId);
+    } catch(err){ alert('JSON 格式錯誤：' + err.message); }
+  };
+  reader.readAsText(file);
+}
+
+function switchEditorTab(tabId, el){
+  document.querySelectorAll('.editor-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  if(el) el.classList.add('active');
+  var tc = document.getElementById('tab-' + tabId);
+  if(tc) tc.classList.add('active');
+}
+
+(function init(){
+  if(!loadFromLS()){
+    var p = defaultProject();
+    p.name = '預設專案';
+    p.cards[0].badgeUrl = 'https://img.shoplineapp.com/media/image_clips/69bd1a49bf130032bb7da5c1/original.png?1774000712=&owner_id=6572a1b95ad192005192397e';
+    p.cards[0].imgUrl   = 'https://picsum.photos/500/300?sig=1';
+    p.cards[0].imgAlt   = '營建業推薦款';
+    p.cards[0].titleText= '營建業推薦款';
+    p.cards[0].date     = '2026.05.01';
+    p.cards[0].desc     = '提供全天候的舒適與極致安全防護，專為高強度作業環境設計，採用頂級防滑大底。';
+    p.cards[0].href     = '#';
+    p.cards[1].badgeUrl = 'https://img.shoplineapp.com/media/image_clips/69bd1aa2f1e47c24e5dc2e85/original.png?1774000802=&owner_id=6572a1b95ad192005192397e';
+    p.cards[1].imgUrl   = 'https://picsum.photos/500/300?sig=2';
+    p.cards[1].imgAlt   = '運輸物流業推薦款';
+    p.cards[1].titleText= '運輸物流業推薦款';
+    p.cards[1].date     = '2026.04.20';
+    p.cards[1].desc     = '提供全天候的舒適與極致安全防護，專為高強度作業環境設計，採用頂級防滑大底。';
+    p.cards[1].href     = '#';
+    projects = [p];
+    currentProjectId = p.id;
+  }
+  renderProjectList();
+  loadProject(currentProjectId);
+})();
+</script>
+</body>
+</html>
