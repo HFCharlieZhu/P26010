@@ -1,0 +1,1411 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>商品推薦區塊產生器</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC',sans-serif;background:#f5f5f3;color:#1a1a1a;font-size:14px;height:100vh;overflow:hidden}
+.app{display:grid;grid-template-columns:200px 400px 1fr;height:100vh}
+
+/* 專案側欄 */
+.projects{background:#1a1a1a;color:#fff;display:flex;flex-direction:column;overflow:hidden}
+.projects-header{padding:16px 14px 12px;border-bottom:1px solid #333}
+.projects-header h1{font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px}
+.btn-new-project{width:100%;font-size:12px;padding:7px;border:1px solid #444;border-radius:6px;background:transparent;cursor:pointer;color:#ccc}
+.btn-new-project:hover{background:#333;color:#fff}
+.project-list{flex:1;overflow-y:auto;padding:8px}
+.project-item{padding:8px 10px;border-radius:6px;cursor:pointer;margin-bottom:2px;display:flex;align-items:center;justify-content:space-between;gap:4px}
+.project-item:hover{background:#2a2a2a}
+.project-item.active{background:#333}
+.project-name-input{font-size:12px;background:transparent;border:none;color:#fff;width:100%;outline:none;padding:0}
+.project-del{font-size:10px;padding:2px 5px;border:1px solid #444;border-radius:4px;background:transparent;cursor:pointer;color:#666;flex-shrink:0}
+.project-del:hover{color:#f66;border-color:#f66}
+
+/* 左側操作 */
+.sidebar{background:#fff;border-right:1px solid #e5e5e3;display:flex;flex-direction:column;overflow:hidden}
+.sidebar-header{padding:16px 20px 0;border-bottom:1px solid #e5e5e3;flex-shrink:0}
+.sidebar-header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sidebar-header-top h2{font-size:14px;font-weight:600}
+.tab-bar{display:flex;gap:0}
+.tab-btn{font-size:12px;padding:7px 12px;border:none;background:transparent;cursor:pointer;color:#888;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab-btn.active{color:#1a1a1a;font-weight:500;border-bottom:2px solid #1a1a1a}
+.tab-content{display:none;flex:1;overflow-y:auto;padding:16px 20px}
+.tab-content.active{display:block}
+
+/* 右側預覽 */
+.preview-area{background:#e8e8e6;padding:24px;display:flex;flex-direction:column;align-items:center;height:100vh;overflow:hidden}
+.preview-toolbar{width:100%;max-width:1100px;display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.preview-toolbar span{font-size:12px;color:#666}
+.preview-frame{width:100%;max-width:1100px;background:#fff;border-radius:8px;overflow-y:auto;overflow-x:hidden;max-height:calc(100vh - 100px);box-shadow:0 2px 12px rgba(0,0,0,0.1)}
+.preview-frame.mobile{max-width:390px}
+
+/* 共用 */
+.section{margin-bottom:16px}
+.section-label{font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px}
+.card{background:#f9f9f7;border:1px solid #e5e5e3;border-radius:8px;padding:12px;margin-bottom:8px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.card-num{font-size:11px;font-weight:600;color:#888}
+input[type=text],input[type=number],input[type=url],select,textarea{width:100%;padding:6px 9px;border:1px solid #ddd;border-radius:6px;font-size:13px;background:#fff;color:#1a1a1a;font-family:inherit}
+input[type=text]:focus,input[type=number]:focus,input[type=url]:focus,select:focus,textarea:focus{outline:none;border-color:#999}
+input[type=color]{width:36px;height:28px;padding:2px;border:1px solid #ddd;border-radius:4px;cursor:pointer}
+input[type=range]{width:100%;cursor:pointer}
+label{font-size:12px;color:#555;display:block;margin-bottom:4px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.mb8{margin-bottom:8px}
+.mb4{margin-bottom:4px}
+.btn{font-size:12px;padding:5px 12px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;color:#1a1a1a;white-space:nowrap}
+.btn:hover{background:#f5f5f3}
+.btn-primary{background:#1a1a1a;color:#fff;border-color:#1a1a1a;font-size:13px;padding:8px 16px;width:100%}
+.btn-primary:hover{background:#333}
+.btn-sm{font-size:11px;padding:3px 8px}
+.btn-add{width:100%;font-size:12px;padding:6px;border:1px dashed #ccc;border-radius:6px;background:transparent;cursor:pointer;color:#666}
+.btn-add:hover{background:#f5f5f3;border-color:#999}
+.btn-del{font-size:11px;padding:2px 7px;border:1px solid #eee;border-radius:4px;background:transparent;cursor:pointer;color:#999}
+.btn-del:hover{background:#fee;color:#c00;border-color:#fcc}
+.output-box{font-family:'Courier New',monospace;font-size:11px;background:#f4f4f2;border:1px solid #e0e0de;border-radius:6px;padding:12px;resize:vertical;min-height:160px;line-height:1.5}
+.copy-row{display:flex;align-items:center;gap:8px;margin-top:8px}
+.copied{font-size:12px;color:#2a9;display:none}
+.row-flex{display:flex;align-items:center;gap:8px}
+.row-flex label{margin:0;flex-shrink:0;font-size:12px;color:#555}
+.sub-card{background:#fff;border:1px solid #e5e5e3;border-radius:6px;padding:10px;margin-bottom:8px}
+.sub-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.sub-label{font-size:11px;font-weight:600;color:#555}
+.img-upload-area{border:2px dashed #ddd;border-radius:6px;padding:12px;text-align:center;cursor:pointer;background:#fafafa;position:relative;min-height:80px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.img-upload-area:hover{border-color:#999;background:#f5f5f3}
+.img-upload-area input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.img-upload-area img{max-width:100%;max-height:60px;object-fit:contain;border-radius:4px}
+.img-upload-text{font-size:11px;color:#999}
+.range-row{display:flex;align-items:center;gap:8px}
+.range-row input[type=range]{flex:1}
+.range-row span{font-size:12px;color:#555;min-width:40px;text-align:right}
+.color-row{display:flex;align-items:center;gap:8px}
+.color-row input[type=color]{flex-shrink:0}
+.color-row input[type=text]{flex:1}
+.divider{border:none;border-top:1px solid #e5e5e3;margin:12px 0}
+.tab-item-card{background:#f0f0ee;border:1px solid #e0e0de;border-radius:6px;padding:10px;margin-bottom:8px}
+.badge-lang{font-size:10px;padding:2px 6px;border-radius:10px;background:#e3f2fd;color:#1565c0;font-weight:500}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- 專案側欄 -->
+<div class="projects">
+  <div class="projects-header">
+    <h1>專案</h1>
+    <button class="btn-new-project" onclick="newProject()">＋ 新增專案</button>
+  </div>
+  <div class="project-list" id="project-list"></div>
+</div>
+
+<!-- 操作區 -->
+<div class="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-header-top">
+      <h2 id="current-project-name">未命名專案</h2>
+      <button class="btn btn-sm" onclick="manualSave()" id="save-btn">儲存</button>
+    </div>
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('content')">內容</button>
+      <button class="tab-btn" onclick="switchTab('style')">樣式</button>
+      <button class="tab-btn" onclick="switchTab('output')">產出</button>
+    </div>
+  </div>
+
+  <!-- ===== 內容 Tab ===== -->
+  <div class="tab-content active" id="tab-content">
+
+    <!-- 區塊標題 -->
+    <div class="section">
+      <div class="section-label">區塊標題</div>
+      <div class="mb8">
+        <label>中文標題</label>
+        <input type="text" id="section-title-zh" value="本月推薦鞋款" oninput="debouncedUpdate()">
+      </div>
+      <div class="mb8">
+        <label>英文標題 <span class="badge-lang">en</span></label>
+        <input type="text" id="section-title-en" placeholder="留空則顯示中文" oninput="debouncedUpdate()">
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Tab 列表 -->
+    <div class="section">
+      <div class="section-label">分類 Tab</div>
+      <div id="tabs-list"></div>
+      <button class="btn-add" onclick="addTab()">＋ 新增 Tab</button>
+    </div>
+
+  </div>
+
+  <!-- ===== 樣式 Tab ===== -->
+  <div class="tab-content" id="tab-style">
+
+    <div class="section">
+      <div class="section-label">整體版面</div>
+      <div class="mb8">
+        <label>背景底色</label>
+        <div class="color-row">
+          <input type="color" id="s-bg" value="#f4f4f4" oninput="syncColorText('s-bg','s-bg-txt');debouncedUpdate()">
+          <input type="text" id="s-bg-txt" value="#f4f4f4" oninput="syncColorPicker('s-bg-txt','s-bg');debouncedUpdate()">
+        </div>
+      </div>
+      <div class="grid2 mb8">
+        <div>
+          <label>上下邊距（px）</label>
+          <input type="number" id="s-pad-v" value="18" min="0" oninput="debouncedUpdate()">
+        </div>
+        <div>
+          <label>左右邊距（px）</label>
+          <input type="number" id="s-pad-h" value="18" min="0" oninput="debouncedUpdate()">
+        </div>
+      </div>
+      <div class="mb8">
+        <label>卡片區最大寬度（px）</label>
+        <input type="number" id="s-max-width" value="1040" min="400" oninput="debouncedUpdate()">
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">區塊標題樣式</div>
+      <div class="grid2 mb8">
+        <div>
+          <label>字級（px）</label>
+          <input type="number" id="s-title-size" value="26" min="12" oninput="debouncedUpdate()">
+        </div>
+        <div>
+          <label>與 Tab 間距（px）</label>
+          <input type="number" id="s-title-mb" value="24" min="0" oninput="debouncedUpdate()">
+        </div>
+      </div>
+      <div class="mb8">
+        <label>顏色</label>
+        <div class="color-row">
+          <input type="color" id="s-title-color" value="#333333" oninput="syncColorText('s-title-color','s-title-color-txt');debouncedUpdate()">
+          <input type="text" id="s-title-color-txt" value="#333333" oninput="syncColorPicker('s-title-color-txt','s-title-color');debouncedUpdate()">
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Tab 列樣式</div>
+      <div class="grid3 mb8">
+        <div>
+          <label>字級（px）</label>
+          <input type="number" id="s-tab-size" value="16" min="10" oninput="debouncedUpdate()">
+        </div>
+        <div>
+          <label>Tab 間距（px）</label>
+          <input type="number" id="s-tab-gap" value="32" min="0" oninput="debouncedUpdate()">
+        </div>
+        <div>
+          <label>Tab 與卡片間距</label>
+          <input type="number" id="s-tab-mb" value="24" min="0" oninput="debouncedUpdate()">
+        </div>
+      </div>
+      <div class="grid2 mb8">
+        <div>
+          <label>未選中顏色</label>
+          <div class="color-row">
+            <input type="color" id="s-tab-inactive" value="#999999" oninput="syncColorText('s-tab-inactive','s-tab-inactive-txt');debouncedUpdate()">
+            <input type="text" id="s-tab-inactive-txt" value="#999999" oninput="syncColorPicker('s-tab-inactive-txt','s-tab-inactive');debouncedUpdate()">
+          </div>
+        </div>
+        <div>
+          <label>選中顏色</label>
+          <div class="color-row">
+            <input type="color" id="s-tab-active" value="#222222" oninput="syncColorText('s-tab-active','s-tab-active-txt');debouncedUpdate()">
+            <input type="text" id="s-tab-active-txt" value="#222222" oninput="syncColorPicker('s-tab-active-txt','s-tab-active');debouncedUpdate()">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">卡片樣式</div>
+      <div class="grid2 mb8">
+        <div>
+          <label>圓角（px）</label>
+          <input type="number" id="s-card-radius" value="8" min="0" oninput="debouncedUpdate()">
+        </div>
+        <div>
+          <label>卡片間距（px）</label>
+          <input type="number" id="s-card-gap" value="10" min="0" oninput="debouncedUpdate()">
+        </div>
+      </div>
+      <div class="mb8">
+        <label>陰影</label>
+        <input type="text" id="s-shadow" value="0 2px 4px rgba(0,0,0,0.15)" placeholder="0 2px 4px rgba(0,0,0,0.15)" oninput="debouncedUpdate()">
+      </div>
+      <div class="mb8">
+        <label>圖片未填底色</label>
+        <div class="color-row">
+          <input type="color" id="s-card-imgbg" value="#e8e0d5" oninput="syncColorText('s-card-imgbg','s-card-imgbg-txt');debouncedUpdate()">
+          <input type="text" id="s-card-imgbg-txt" value="#e8e0d5" oninput="syncColorPicker('s-card-imgbg-txt','s-card-imgbg');debouncedUpdate()">
+        </div>
+      </div>
+      <div class="mb8">
+        <label>Hover 遮罩透明度</label>
+        <div class="range-row">
+          <input type="range" id="s-hover-opacity" min="0" max="100" value="15" oninput="document.getElementById('s-hover-opacity-val').textContent=this.value+'%';debouncedUpdate()">
+          <span id="s-hover-opacity-val">15%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">大卡（左欄）</div>
+      <div class="grid2 mb8">
+        <div>
+          <label>電腦版高度（px）</label>
+          <input type="number" id="s-main-h" value="600" min="200" oninput="debouncedUpdate()">
+        </div>
+        <div>
+          <label>文字區內距（px）</label>
+          <input type="number" id="s-main-pad" value="18" min="0" oninput="debouncedUpdate()">
+        </div>
+      </div>
+      <div class="grid2 mb8">
+        <div>
+          <label>標題字級（px）</label>
+          <input type="number" id="s-main-title-size" value="20" min="10" oninput="debouncedUpdate()">
+        </div>
+        <div>
+          <label>內文字級（px）</label>
+          <input type="number" id="s-main-desc-size" value="16" min="10" oninput="debouncedUpdate()">
+        </div>
+      </div>
+      <div class="mb8">
+        <label>手機版圖片比例（寬:高）</label>
+        <div class="grid2">
+          <input type="number" id="s-main-ratio-w" value="4" min="1">
+          <input type="number" id="s-main-ratio-h" value="3" min="1">
+        </div>
+        <div style="font-size:11px;color:#999;margin-top:2px" id="s-main-ratio-preview">= 4/3</div>
+      </div>
+      <div class="mb8" style="margin-top:10px">
+        <label style="font-weight:600">右上角 Icon 設定</label>
+      </div>
+      <div class="grid2 mb8">
+        <div>
+          <label>Icon 大小（px）</label>
+          <input type="number" id="s-corner-icon-size" value="80" min="10" oninput="debouncedUpdate()">
+        </div>
+        <div>
+          <label>距上邊距（px）</label>
+          <input type="number" id="s-corner-icon-top" value="5" min="0" oninput="debouncedUpdate()">
+        </div>
+      </div>
+      <div class="mb8">
+        <label>距右邊距（px）</label>
+        <input type="number" id="s-corner-icon-right" value="25" min="0" oninput="debouncedUpdate()">
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">小卡（右欄）</div>
+      <div class="grid2 mb8">
+        <div>
+          <label>電腦版高度（px）</label>
+          <input type="number" id="s-sub-h" value="292" min="100" oninput="debouncedUpdate()">
+        </div>
+        <div>
+          <label>文字區內距（px）</label>
+          <input type="number" id="s-sub-pad" value="14" min="0" oninput="debouncedUpdate()">
+        </div>
+      </div>
+      <div class="grid2 mb8">
+        <div>
+          <label>標題字級（px）</label>
+          <input type="number" id="s-sub-title-size" value="16" min="10" oninput="debouncedUpdate()">
+        </div>
+        <div>
+          <label>內文字級（px）</label>
+          <input type="number" id="s-sub-desc-size" value="13" min="10" oninput="debouncedUpdate()">
+        </div>
+      </div>
+      <div class="mb8">
+        <label>手機版高度（px）</label>
+        <input type="number" id="s-sub-mobile-h" value="150" min="80" oninput="debouncedUpdate()">
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">文字顏色</div>
+      <div class="grid2 mb8">
+        <div>
+          <label>標題顏色</label>
+          <div class="color-row">
+            <input type="color" id="s-title-clr" value="#222222" oninput="syncColorText('s-title-clr','s-title-clr-txt');debouncedUpdate()">
+            <input type="text" id="s-title-clr-txt" value="#222222" oninput="syncColorPicker('s-title-clr-txt','s-title-clr');debouncedUpdate()">
+          </div>
+        </div>
+        <div>
+          <label>內文顏色</label>
+          <div class="color-row">
+            <input type="color" id="s-desc-clr" value="#666666" oninput="syncColorText('s-desc-clr','s-desc-clr-txt');debouncedUpdate()">
+            <input type="text" id="s-desc-clr-txt" value="#666666" oninput="syncColorPicker('s-desc-clr-txt','s-desc-clr');debouncedUpdate()">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">按鈕樣式</div>
+      <div class="grid2 mb8">
+        <div>
+          <label>按鈕背景色</label>
+          <div class="color-row">
+            <input type="color" id="s-btn-bg" value="#252525" oninput="syncColorText('s-btn-bg','s-btn-bg-txt');debouncedUpdate()">
+            <input type="text" id="s-btn-bg-txt" value="#252525" oninput="syncColorPicker('s-btn-bg-txt','s-btn-bg');debouncedUpdate()">
+          </div>
+        </div>
+        <div>
+          <label>按鈕文字色</label>
+          <div class="color-row">
+            <input type="color" id="s-btn-clr" value="#eeeeee" oninput="syncColorText('s-btn-clr','s-btn-clr-txt');debouncedUpdate()">
+            <input type="text" id="s-btn-clr-txt" value="#eeeeee" oninput="syncColorPicker('s-btn-clr-txt','s-btn-clr');debouncedUpdate()">
+          </div>
+        </div>
+      </div>
+      <div class="mb8">
+        <label>按鈕圓角（px）</label>
+        <input type="number" id="s-btn-radius" value="3" min="0" oninput="debouncedUpdate()">
+      </div>
+      <div class="grid2 mb8">
+        <div>
+          <label>與卡片距離（px）</label>
+          <input type="number" id="s-btn-mt" value="40" min="0" oninput="debouncedUpdate()">
+        </div>
+        <div>
+          <label>字級（rem）</label>
+          <input type="number" id="s-btn-size" value="1.6" step="0.1" min="1" oninput="debouncedUpdate()">
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">匯出 / 匯入</div>
+      <div class="grid2">
+        <button class="btn" onclick="exportJSON()">匯出 JSON</button>
+        <label class="btn" style="text-align:center;cursor:pointer">匯入 JSON<input type="file" accept=".json" style="display:none" onchange="importJSON(event)"></label>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== 產出 Tab ===== -->
+  <div class="tab-content" id="tab-output">
+    <div class="section">
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
+        <label style="font-size:12px;display:flex;align-items:center;gap:8px">
+          <input type="checkbox" id="opt-include-fonts" checked>
+          輸出字體載入（Shopline 已有 Noto Sans TC 可取消）
+        </label>
+        <label style="font-size:12px;display:flex;align-items:center;gap:8px">
+          <input type="checkbox" id="opt-include-css" checked>
+          輸出 CSS（同頁面多個區塊只需第一個勾選）
+        </label>
+      </div>
+      <button class="btn-primary" onclick="generate()" style="margin-bottom:12px">產生程式碼</button>
+      <textarea class="output-box" id="output" readonly placeholder="按上方「產生程式碼」後顯示"></textarea>
+      <div class="copy-row">
+        <button class="btn" onclick="copyCode()">複製</button>
+        <span class="copied" id="copied">已複製！</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 預覽區 -->
+<div class="preview-area">
+  <div class="preview-toolbar">
+    <span>預覽</span>
+    <button class="btn btn-sm" onclick="renderPreview()">重整</button>
+    <select id="preview-size" style="width:auto;font-size:12px" onchange="togglePreviewSize()">
+      <option value="desktop">桌面版</option>
+      <option value="mobile">手機版</option>
+    </select>
+  </div>
+  <div class="preview-frame" id="preview-frame" style="overflow-y:auto;max-height:calc(100vh - 80px)">
+    <div id="preview-inner">
+      <div style="display:flex;align-items:center;justify-content:center;min-height:300px;color:#bbb;font-size:13px">填寫左側設定後，預覽會自動更新</div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+// ============================================================
+// 專案管理
+// ============================================================
+let projects = [];
+let currentProjectId = null;
+
+function loadProjects(){
+  projects = JSON.parse(localStorage.getItem('rec-projects') || '[]');
+  if(!projects.length) newProject(true);
+  else { currentProjectId = projects[0].id; renderProjectList(); loadProject(currentProjectId); }
+}
+function saveProjects(){
+  localStorage.setItem('rec-projects', JSON.stringify(projects));
+}
+function newProject(silent){
+  const id = 'proj-' + Date.now();
+  const proj = { id, name:'未命名專案', state:null };
+  projects.unshift(proj);
+  currentProjectId = id;
+  saveProjects();
+  renderProjectList();
+  resetEditor();
+}
+function deleteProject(id, e){
+  e.stopPropagation();
+  if(projects.length === 1){ alert('至少需要保留一個專案'); return; }
+  projects = projects.filter(p => p.id !== id);
+  if(currentProjectId === id){ currentProjectId = projects[0].id; loadProject(currentProjectId); }
+  saveProjects();
+  renderProjectList();
+}
+function switchProject(id){
+  autoSave();
+  currentProjectId = id;
+  loadProject(id);
+  renderProjectList();
+}
+function renameProject(id, name){
+  const p = projects.find(p => p.id === id);
+  if(p){ p.name = name; saveProjects(); }
+  document.getElementById('current-project-name').textContent = name || '未命名專案';
+}
+function renderProjectList(){
+  const el = document.getElementById('project-list');
+  el.innerHTML = '';
+  projects.forEach(p => {
+    const item = document.createElement('div');
+    item.className = 'project-item' + (p.id === currentProjectId ? ' active' : '');
+    item.onclick = () => switchProject(p.id);
+    const nameEl = document.createElement('input');
+    nameEl.className = 'project-name-input';
+    nameEl.value = p.name;
+    nameEl.onclick = e => e.stopPropagation();
+    nameEl.oninput = e => renameProject(p.id, e.target.value);
+    const del = document.createElement('button');
+    del.className = 'project-del'; del.textContent = '✕';
+    del.onclick = e => deleteProject(p.id, e);
+    item.appendChild(nameEl); item.appendChild(del);
+    el.appendChild(item);
+  });
+}
+function autoSave(){
+  if(!currentProjectId) return;
+  const p = projects.find(p => p.id === currentProjectId);
+  if(p){ p.state = getState(); saveProjects(); }
+}
+function manualSave(){
+  autoSave();
+  const btn = document.getElementById('save-btn');
+  btn.textContent = '已儲存'; btn.style.color = '#2a9';
+  setTimeout(() => { btn.textContent = '儲存'; btn.style.color = ''; }, 1500);
+}
+
+// ============================================================
+// 防抖
+// ============================================================
+let _debounceTimer = null;
+function debouncedUpdate(){
+  clearTimeout(_debounceTimer);
+  _debounceTimer = setTimeout(() => { autoSave(); renderPreview(); }, 280);
+}
+
+// ============================================================
+// 顏色同步
+// ============================================================
+function syncColorText(pickerId, textId){
+  const p = document.getElementById(pickerId);
+  const t = document.getElementById(textId);
+  if(p && t) t.value = p.value;
+}
+function syncColorPicker(textId, pickerId){
+  const t = document.getElementById(textId);
+  const p = document.getElementById(pickerId);
+  if(t && p && /^#[0-9a-fA-F]{6}$/.test(t.value)) p.value = t.value;
+}
+
+// ============================================================
+// Tab 列表管理
+// ============================================================
+let tabList = [];
+let tabIdCounter = 0;
+
+function addTab(){
+  tabIdCounter++;
+  const id = 'tab-' + tabIdCounter;
+  tabList.push({
+    id, nameZh:'新 Tab', nameEn:'',
+    btnTextZh:'查看更多', btnTextEn:'',
+    btnUrl:'#',
+    icons:[],
+    main:{ imgUrl:'', imgFile:null, alt:'', titleZh:'', titleEn:'', descZh:'', descEn:'', url:'#', titleTag:'h2' },
+    subs:[]
+  });
+  renderTabList();
+  debouncedUpdate();
+}
+
+function removeTab(id){
+  tabList = tabList.filter(t => t.id !== id);
+  renderTabList();
+  debouncedUpdate();
+}
+
+function moveTab(id, dir){
+  const idx = tabList.findIndex(t => t.id === id);
+  if(dir === 'up' && idx > 0){
+    [tabList[idx-1], tabList[idx]] = [tabList[idx], tabList[idx-1]];
+  } else if(dir === 'down' && idx < tabList.length - 1){
+    [tabList[idx], tabList[idx+1]] = [tabList[idx+1], tabList[idx]];
+  }
+  renderTabList();
+  debouncedUpdate();
+}
+
+function addSubCard(tabId){
+  const tab = tabList.find(t => t.id === tabId);
+  if(!tab) return;
+  tab.subs.push({ imgUrl:'', imgFile:null, alt:'', titleZh:'', titleEn:'', descZh:'', descEn:'', url:'#', titleTag:'h3' });
+  renderTabList();
+  debouncedUpdate();
+}
+
+function removeSubCard(tabId, subIdx){
+  const tab = tabList.find(t => t.id === tabId);
+  if(!tab) return;
+  tab.subs.splice(subIdx, 1);
+  renderTabList();
+  debouncedUpdate();
+}
+
+function addIcon(tabId){
+  const tab = tabList.find(t => t.id === tabId);
+  if(!tab) return;
+  tab.icons.push({ labelZh:'功能', labelEn:'', imgUrl:'' });
+  renderTabList();
+  debouncedUpdate();
+}
+
+function removeIcon(tabId, iconIdx){
+  const tab = tabList.find(t => t.id === tabId);
+  if(!tab) return;
+  tab.icons.splice(iconIdx, 1);
+  renderTabList();
+  debouncedUpdate();
+}
+
+function readValue(id){ const el = document.getElementById(id); return el ? el.value : ''; }
+
+function syncTabListFromDOM(){
+  tabList.forEach(tab => {
+    tab.nameZh       = readValue('tn-zh-' + tab.id);
+    tab.nameEn       = readValue('tn-en-' + tab.id);
+    tab.btnTextZh    = readValue('tb-zh-' + tab.id);
+    tab.btnTextEn    = readValue('tb-en-' + tab.id);
+    tab.btnUrl       = readValue('tb-url-' + tab.id);
+    tab.main.imgUrl  = readValue('m-img-' + tab.id);
+    tab.main.alt          = readValue('m-alt-' + tab.id);
+    tab.main.cornerIconUrl = readValue('m-corner-icon-' + tab.id);
+    tab.main.cornerIconAlt = readValue('m-corner-icon-alt-' + tab.id);
+    tab.main.titleZh = readValue('m-tzh-' + tab.id);
+    tab.main.titleEn = readValue('m-ten-' + tab.id);
+    tab.main.titleTag= readValue('m-tag-' + tab.id) || 'h2';
+    tab.main.descZh  = readValue('m-dzh-' + tab.id);
+    tab.main.descEn  = readValue('m-den-' + tab.id);
+    tab.main.url     = readValue('m-url-' + tab.id);
+    tab.subs.forEach((sub, i) => {
+      sub.imgUrl  = readValue('s-img-' + tab.id + '-' + i);
+      sub.alt     = readValue('s-alt-' + tab.id + '-' + i);
+      sub.titleZh = readValue('s-tzh-' + tab.id + '-' + i);
+      sub.titleEn = readValue('s-ten-' + tab.id + '-' + i);
+      sub.titleTag= readValue('s-tag-' + tab.id + '-' + i) || 'h3';
+      sub.descZh  = readValue('s-dzh-' + tab.id + '-' + i);
+      sub.descEn  = readValue('s-den-' + tab.id + '-' + i);
+      sub.url     = readValue('s-url-' + tab.id + '-' + i);
+    });
+    tab.icons.forEach((icon, i) => {
+      icon.labelZh = readValue('ic-zh-' + tab.id + '-' + i);
+      icon.labelEn = readValue('ic-en-' + tab.id + '-' + i);
+      icon.imgUrl  = readValue('ic-img-' + tab.id + '-' + i);
+    });
+  });
+}
+
+function handleImgUpload(file, callback){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => callback(e.target.result);
+  reader.readAsDataURL(file);
+}
+
+function renderTabList(){
+  const container = document.getElementById('tabs-list');
+  container.innerHTML = '';
+  tabList.forEach((tab, tabIdx) => {
+    const card = document.createElement('div');
+    card.className = 'tab-item-card';
+
+    // ── Header
+    let html = `<div class="card-header">
+      <span class="card-num">Tab ${tabIdx+1}</span>
+      <div style="display:flex;gap:4px">
+        <button class="btn-del" onclick="moveTab('${tab.id}','up')">↑</button>
+        <button class="btn-del" onclick="moveTab('${tab.id}','down')">↓</button>
+        <button class="btn-del" onclick="removeTab('${tab.id}')">刪除</button>
+      </div>
+    </div>`;
+
+    // ── Tab 名稱 & 按鈕
+    html += `<div class="grid2 mb8">
+      <div><label>Tab 名稱（中）</label><input type="text" id="tn-zh-${tab.id}" value="${esc(tab.nameZh)}" oninput="debouncedUpdate()"></div>
+      <div><label>Tab 名稱（英）<span class="badge-lang">en</span></label><input type="text" id="tn-en-${tab.id}" value="${esc(tab.nameEn)}" placeholder="留空用中文" oninput="debouncedUpdate()"></div>
+    </div>
+    <div class="grid2 mb8">
+      <div><label>按鈕文字（中）</label><input type="text" id="tb-zh-${tab.id}" value="${esc(tab.btnTextZh)}" oninput="debouncedUpdate()"></div>
+      <div><label>按鈕文字（英）<span class="badge-lang">en</span></label><input type="text" id="tb-en-${tab.id}" value="${esc(tab.btnTextEn)}" placeholder="留空用中文" oninput="debouncedUpdate()"></div>
+    </div>
+    <div class="mb8"><label>按鈕連結</label><input type="url" id="tb-url-${tab.id}" value="${esc(tab.btnUrl)}" oninput="debouncedUpdate()"></div>`;
+
+    // ── 大卡
+    const mainW = Math.round(parseInt(readValue('s-max-width')||1040)/2);
+    const mainH = parseInt(readValue('s-main-h')||600);
+    const subH  = parseInt(readValue('s-sub-h')||292);
+    const subMH = parseInt(readValue('s-sub-mobile-h')||150);
+    const rW    = parseInt(readValue('s-main-ratio-w')||4);
+    const rH    = parseInt(readValue('s-main-ratio-h')||3);
+    const mainMobileH = Math.round(390 * rH / rW);
+    html += `<div class="sub-card">
+      <div class="sub-card-header"><span class="sub-label">大卡（左）</span></div>
+      <div class="mb8"><label>圖片網址</label><input type="url" id="m-img-${tab.id}" value="${esc(tab.main.imgUrl)}" placeholder="https://..." oninput="debouncedUpdate()">
+        <div style="font-size:11px;color:#888;margin-top:3px">建議尺寸：電腦版約 <b>${mainW}×${mainH}px</b>、手機版約 <b>390×${mainMobileH}px</b>（比例 ${rW}:${rH}）</div>
+      </div>
+      <div class="mb8"><label>圖片 alt 說明文字</label><input type="text" id="m-alt-${tab.id}" value="${esc(tab.main.alt)}" placeholder="SF2409BLK 護神靴 抗靜電安全鞋" oninput="debouncedUpdate()"></div>
+      <div class="mb8"><label>右上角 Icon 圖片網址</label><input type="url" id="m-corner-icon-${tab.id}" value="${esc(tab.main.cornerIconUrl||'')}" placeholder="https://..." oninput="debouncedUpdate()"></div>
+      <div class="mb8"><label>右上角 Icon Alt</label><input type="text" id="m-corner-icon-alt-${tab.id}" value="${esc(tab.main.cornerIconAlt||'')}" placeholder="Alt 說明" oninput="debouncedUpdate()"></div>
+      <div class="grid2 mb8">
+        <div><label>標題層級</label><select id="m-tag-${tab.id}" onchange="debouncedUpdate()">
+          ${['h2','h3','h4','h5'].map(t=>`<option value="${t}"${(tab.main.titleTag||'h2')===t?' selected':''}>${t.toUpperCase()}</option>`).join('')}
+        </select></div>
+        <div></div>
+      </div>
+      <div class="grid2 mb8">
+        <div><label>標題（中）</label><input type="text" id="m-tzh-${tab.id}" value="${esc(tab.main.titleZh)}" oninput="debouncedUpdate()"></div>
+        <div><label>標題（英）<span class="badge-lang">en</span></label><input type="text" id="m-ten-${tab.id}" value="${esc(tab.main.titleEn)}" placeholder="留空用中文" oninput="debouncedUpdate()"></div>
+      </div>
+      <div class="grid2 mb8">
+        <div><label>介紹（中）</label><textarea id="m-dzh-${tab.id}" rows="2" oninput="debouncedUpdate()" style="resize:vertical">${esc(tab.main.descZh)}</textarea></div>
+        <div><label>介紹（英）<span class="badge-lang">en</span></label><textarea id="m-den-${tab.id}" rows="2" placeholder="留空用中文" oninput="debouncedUpdate()" style="resize:vertical">${esc(tab.main.descEn)}</textarea></div>
+      </div>
+      <div class="mb8"><label>連結</label><input type="url" id="m-url-${tab.id}" value="${esc(tab.main.url)}" oninput="debouncedUpdate()"></div>
+    </div>`;
+
+    // ── 小卡
+    html += `<div class="sub-card">
+      <div class="sub-card-header"><span class="sub-label">小卡（右）</span><button class="btn-del" onclick="addSubCard('${tab.id}')">＋ 新增</button></div>`;
+    tab.subs.forEach((sub, si) => {
+      html += `<div style="background:#f9f9f7;border:1px solid #e5e5e3;border-radius:6px;padding:8px;margin-bottom:6px">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
+          <button class="btn-del" onclick="removeSubCard('${tab.id}',${si})">刪除</button>
+        </div>
+        <div class="mb8"><label>圖片網址</label><input type="url" id="s-img-${tab.id}-${si}" value="${esc(sub.imgUrl)}" placeholder="https://..." oninput="debouncedUpdate()">
+          <div style="font-size:11px;color:#888;margin-top:3px">建議尺寸：電腦版約 <b>${mainW}×${subH}px</b>、手機版約 <b>${Math.round(390*0.5)}×${subMH}px</b>（橫排各半）</div>
+        </div>
+        <div class="mb8"><label>圖片 alt 說明文字</label><input type="text" id="s-alt-${tab.id}-${si}" value="${esc(sub.alt)}" placeholder="SF2307BRN 戰神靴 雙密度PU大底" oninput="debouncedUpdate()"></div>
+        <div class="grid2 mb8">
+          <div><label>標題層級</label><select id="s-tag-${tab.id}-${si}" onchange="debouncedUpdate()">
+            ${['h2','h3','h4','h5'].map(t=>`<option value="${t}"${(sub.titleTag||'h3')===t?' selected':''}>${t.toUpperCase()}</option>`).join('')}
+          </select></div>
+          <div></div>
+        </div>
+        <div class="grid2 mb8">
+          <div><label>標題（中）</label><input type="text" id="s-tzh-${tab.id}-${si}" value="${esc(sub.titleZh)}" oninput="debouncedUpdate()"></div>
+          <div><label>標題（英）<span class="badge-lang">en</span></label><input type="text" id="s-ten-${tab.id}-${si}" value="${esc(sub.titleEn)}" placeholder="留空用中文" oninput="debouncedUpdate()"></div>
+        </div>
+        <div class="grid2 mb8">
+          <div><label>介紹（中）</label><input type="text" id="s-dzh-${tab.id}-${si}" value="${esc(sub.descZh)}" oninput="debouncedUpdate()"></div>
+          <div><label>介紹（英）<span class="badge-lang">en</span></label><input type="text" id="s-den-${tab.id}-${si}" value="${esc(sub.descEn)}" placeholder="留空用中文" oninput="debouncedUpdate()"></div>
+        </div>
+        <div><label>連結</label><input type="url" id="s-url-${tab.id}-${si}" value="${esc(sub.url)}" oninput="debouncedUpdate()"></div>
+      </div>`;
+    });
+    html += `</div>`;
+
+    // ── Icons
+    html += `<div class="sub-card">
+      <div class="sub-card-header"><span class="sub-label">功能 Icon</span><button class="btn-del" onclick="addIcon('${tab.id}')">＋ 新增</button></div>`;
+    tab.icons.forEach((icon, ii) => {
+      html += `<div style="background:#f9f9f7;border:1px solid #e5e5e3;border-radius:6px;padding:8px;margin-bottom:6px">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:4px"><button class="btn-del" onclick="removeIcon('${tab.id}',${ii})">刪除</button></div>
+        <div class="grid2 mb8">
+          <div><label>標籤（中）</label><input type="text" id="ic-zh-${tab.id}-${ii}" value="${esc(icon.labelZh)}" oninput="debouncedUpdate()"></div>
+          <div><label>標籤（英）<span class="badge-lang">en</span></label><input type="text" id="ic-en-${tab.id}-${ii}" value="${esc(icon.labelEn)}" placeholder="留空用中文" oninput="debouncedUpdate()"></div>
+        </div>
+        <div><label>圖片網址（留空顯示色塊）</label><input type="url" id="ic-img-${tab.id}-${ii}" value="${esc(icon.imgUrl)}" placeholder="https://..." oninput="debouncedUpdate()"></div>
+      </div>`;
+    });
+    html += `</div>`;
+
+    card.innerHTML = html;
+    container.appendChild(card);
+  });
+}
+
+function esc(s){ return (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+// ============================================================
+// 讀取樣式設定
+// ============================================================
+function getStyleSettings(){
+  return {
+    bg:         readValue('s-bg')              || '#f4f4f4',
+    padV:       readValue('s-pad-v')           || '18',
+    padH:       readValue('s-pad-h')           || '18',
+    maxW:       readValue('s-max-width')       || '1040',
+    titleSize:  readValue('s-title-size')      || '26',
+    titleMb:    readValue('s-title-mb')        || '24',
+    titleColor: readValue('s-title-color')     || '#333333',
+    tabSize:    readValue('s-tab-size')        || '16',
+    tabGap:     readValue('s-tab-gap')         || '32',
+    tabMb:      readValue('s-tab-mb')          || '24',
+    tabInactive:readValue('s-tab-inactive')    || '#999999',
+    tabActive:  readValue('s-tab-active')      || '#222222',
+    cardRadius: readValue('s-card-radius')     || '8',
+    cardGap:    readValue('s-card-gap')        || '10',
+    shadow:     readValue('s-shadow')          || '0 2px 4px rgba(0,0,0,0.15)',
+    imgBg:      readValue('s-card-imgbg')      || '#e8e0d5',
+    hoverOp:    document.getElementById('s-hover-opacity') ? document.getElementById('s-hover-opacity').value : '15',
+    mainH:      readValue('s-main-h')          || '600',
+    mainPad:    readValue('s-main-pad')        || '18',
+    mainTitleSz:readValue('s-main-title-size') || '20',
+    mainDescSz: readValue('s-main-desc-size')  || '16',
+    mainRatioW: readValue('s-main-ratio-w')    || '4',
+    mainRatioH: readValue('s-main-ratio-h')    || '3',
+    cornerIconSize:  readValue('s-corner-icon-size')  || '80',
+    cornerIconTop:   readValue('s-corner-icon-top')   || '5',
+    cornerIconRight: readValue('s-corner-icon-right')  || '25',
+    subH:       readValue('s-sub-h')           || '292',
+    subPad:     readValue('s-sub-pad')         || '14',
+    subTitleSz: readValue('s-sub-title-size')  || '16',
+    subDescSz:  readValue('s-sub-desc-size')   || '13',
+    subMobileH: readValue('s-sub-mobile-h')    || '150',
+    titleClr:   readValue('s-title-clr')       || '#222222',
+    descClr:    readValue('s-desc-clr')        || '#666666',
+    btnBg:      readValue('s-btn-bg')          || '#252525',
+    btnClr:     readValue('s-btn-clr')         || '#eeeeee',
+    btnRadius:  readValue('s-btn-radius')      || '3',
+    btnMt:      readValue('s-btn-mt')          || '40',
+    btnSize:    readValue('s-btn-size')        || '1.6',
+    sectionTitleZh: readValue('section-title-zh') || '本月推薦鞋款',
+    sectionTitleEn: readValue('section-title-en') || '',
+  };
+}
+
+// ============================================================
+// 程式碼產生
+// ============================================================
+function buildHTML(forPreview){
+  syncTabListFromDOM();
+  const s = getStyleSettings();
+  const hoverOpNum = (parseFloat(s.hoverOp)||15) / 100;
+  const tabs = tabList;
+  if(!tabs.length) return '<div style="padding:20px;color:#999;font-size:13px">尚未新增任何 Tab</div>';
+
+  const firstTabId = tabs[0].id;
+
+  // ── JS (lang detection + tab switch)
+  const jsTabData = tabs.map((t, i) => ({
+    id: t.id,
+    icons: t.icons.map(ic => ({
+      labelZh: ic.labelZh || '',
+      labelEn: ic.labelEn || '',
+      imgUrl:  ic.imgUrl  || ''
+    }))
+  }));
+
+  const tabsJS = JSON.stringify(jsTabData);
+
+  // 產出 html
+  const tabBarHtml = tabs.map((t, i) => {
+    const namePart = t.nameEn
+      ? `data-zh="${esc2(t.nameZh)}" data-en="${esc2(t.nameEn)}"`
+      : `data-zh="${esc2(t.nameZh)}"`;
+    return `<div class="rec-tab${i===0?' active':''}" onclick="recSwitchTab('${t.id}',this)" ${namePart}>${esc2(t.nameZh)}</div>`;
+  }).join('');
+
+  const panelsHtml = tabs.map((t, i) => {
+    const mainImg = forPreview && !t.main.imgUrl
+      ? 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80"><rect width="100" height="80" fill="%23e0e0e0"/><text x="50" y="40" text-anchor="middle" fill="%23999" font-size="10" dy=".3em">圖片</text></svg>'
+      : (t.main.imgUrl || '');
+    const mainTitle  = t.main.titleEn  ? `data-zh="${esc2(t.main.titleZh)}" data-en="${esc2(t.main.titleEn)}"` : `data-zh="${esc2(t.main.titleZh)}"`;
+    const mainDesc   = t.main.descEn   ? `data-zh="${esc2(t.main.descZh)}" data-en="${esc2(t.main.descEn)}"` : `data-zh="${esc2(t.main.descZh)}"`;
+    const btnText    = t.btnTextEn  ? `data-zh="${esc2(t.btnTextZh)}" data-en="${esc2(t.btnTextEn)}"` : `data-zh="${esc2(t.btnTextZh)}"`;
+
+    const subsHtml = t.subs.map((sub, si) => {
+      const subImg = forPreview && !sub.imgUrl
+        ? 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="60"><rect width="100" height="60" fill="%23e0e0de"/><text x="50" y="30" text-anchor="middle" fill="%23bbb" font-size="9" dy=".3em">圖片</text></svg>'
+        : (sub.imgUrl || '');
+      const subTitle = sub.titleEn ? `data-zh="${esc2(sub.titleZh)}" data-en="${esc2(sub.titleEn)}"` : `data-zh="${esc2(sub.titleZh)}"`;
+      const subDesc  = sub.descEn  ? `data-zh="${esc2(sub.descZh)}" data-en="${esc2(sub.descEn)}"` : `data-zh="${esc2(sub.descZh)}"`;
+      return `<a class="rec-card rec-card-sub" href="${esc2(sub.url)}" target="_blank">
+        <div class="rec-card-body">
+          <${sub.titleTag||'h3'} class="rec-card-title" ${subTitle}>${esc2(sub.titleZh)}</${sub.titleTag||'h3'}>
+          <p class="rec-card-desc" ${subDesc}>${esc2(sub.descZh)}</p>
+        </div>
+        <div class="rec-card-img-wrap">${subImg?`<img src="${subImg}" alt="${esc2(sub.alt||sub.titleZh)}" loading="lazy">`:''}</div>
+      </a>`;
+    }).join('\n');
+
+    // icon html (電腦側欄、手機橫排皆由 JS 控制)
+    return `<div class="rec-panel${i===0?' active':''}" id="rec-panel-${t.id}">
+    <div class="rec-panel-wrap">
+      <div class="rec-cards-grid">
+        <a class="rec-card rec-card-main" href="${esc2(t.main.url)}" target="_blank">
+          <div class="rec-card-body">
+            <${t.main.titleTag||'h2'} class="rec-card-title" ${mainTitle}>${esc2(t.main.titleZh)}</${t.main.titleTag||'h2'}>
+            <p class="rec-card-desc" ${mainDesc}>${esc2(t.main.descZh)}</p>
+          </div>
+          <div class="rec-card-img-wrap">${mainImg?`<img src="${mainImg}" alt="${esc2(t.main.alt||t.main.titleZh)}" loading="${i===0?'eager':'lazy'}">`:''}${t.main.cornerIconUrl?`<div class="rec-card-corner-icon"><img src="${esc2(t.main.cornerIconUrl)}" alt="${esc2(t.main.cornerIconAlt||'')}"></div>`:''}</div>
+        </a>
+${subsHtml}
+      </div>
+      <div class="rec-icons-side" id="rec-icons-side-${t.id}"></div>
+    </div>
+    <div class="rec-btn-wrap">
+      <a class="rec-site-btn" href="${esc2(t.btnUrl)}" target="_blank" ${btnText}>${esc2(t.btnTextZh)}</a>
+    </div>
+  </div>`;
+  }).join('\n');
+
+  const sectionTitle = s.sectionTitleEn
+    ? `data-zh="${esc2(s.sectionTitleZh)}" data-en="${esc2(s.sectionTitleEn)}"`
+    : `data-zh="${esc2(s.sectionTitleZh)}"`;
+
+  const html = `<div class="rec-wrap">
+  <h2 class="rec-section-title" ${sectionTitle}>${esc2(s.sectionTitleZh)}</h2>
+  <div class="rec-tabs" id="rec-tab-bar">${tabBarHtml}</div>
+  <div class="rec-icons-mobile" id="rec-icons-mobile"></div>
+  <div id="rec-panels" class="rec-panels-scroll">${panelsHtml}</div>
+</div>`;
+
+  return html;
+}
+
+function esc2(s){
+  return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function buildCSS(s){
+  const hoverOpNum = (parseFloat(s.hoverOp)||15)/100;
+  return `<style>
+.rec-wrap{background:${s.bg};padding:${s.padV}px ${s.padH}px;overflow-x:hidden;width:100%;box-sizing:border-box}
+.rec-section-title{text-align:center;font-size:${s.titleSize}px;color:${s.titleColor};margin-bottom:${s.titleMb}px;letter-spacing:0.02em}
+.rec-tabs{display:flex;justify-content:center;gap:${s.tabGap}px;margin-bottom:${s.tabMb}px}
+.rec-tab{font-size:${s.tabSize}px;color:${s.tabInactive};cursor:pointer;padding-bottom:4px;border-bottom:2px solid transparent;transition:all .2s}
+.rec-tab.active{color:${s.tabActive};border-bottom-color:${s.tabActive}}
+.rec-panel{display:none}.rec-panel.active{display:block}
+.rec-panels-scroll{position:relative}
+@media(max-width:768px){
+  .rec-panels-scroll{display:flex;overflow-x:auto;overflow-y:visible;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;scrollbar-width:none;margin-left:-${s.padH}px;margin-right:-${s.padH}px}
+  .rec-panels-scroll::-webkit-scrollbar{display:none}
+  .rec-panels-scroll .rec-panel{display:block!important;flex:0 0 100%;min-width:0;scroll-snap-align:start;scroll-snap-stop:always;padding-left:${s.padH}px;padding-right:${s.padH}px}
+}
+.rec-panel-wrap{position:relative;max-width:${s.maxW}px;margin:0 auto}
+.rec-cards-grid{display:grid;grid-template-columns:1fr 1fr;gap:${s.cardGap}px}
+.rec-icons-side{position:absolute;top:0;left:calc(100% + 16px);}
+.rec-icon-item{display:flex;flex-direction:column;align-items:center;gap:6px}
+.rec-icons-side-group{display:none;flex-direction:column;gap:16px}
+.rec-icons-side-group.active{display:flex}
+.rec-icons-mobile-group{display:none;justify-content:center;gap:16px}
+.rec-icons-mobile-group.active{display:flex}
+.rec-icon-block{width:72px;height:52px;border-radius:8px;overflow:hidden;background:none}
+.rec-icon-block img{width:100%;height:100%;object-fit:cover}
+.rec-icon-label{font-size:12px;color:#999}
+.rec-icons-mobile{display:none;margin-bottom:20px}
+.rec-icon-block-mobile{width:56px;height:40px;border-radius:6px;overflow:hidden;background:none}
+.rec-icon-block-mobile img{width:100%;height:100%;object-fit:cover}
+.rec-card{background:#fff;border-radius:${s.cardRadius}px;box-shadow:${s.shadow};overflow:hidden;text-decoration:none;display:flex;flex-direction:column}
+.rec-card-body{display:flex;flex-direction:column}
+.rec-card-img-wrap{position:relative;overflow:hidden;background:${s.imgBg}}
+.rec-card-img-wrap img{width:100%;height:100%;object-fit:cover;display:block;transition:filter .3s}
+.rec-card-img-wrap::after{content:'';position:absolute;inset:0;background:rgba(0,0,0,${hoverOpNum});opacity:0;transition:opacity .3s;pointer-events:none}
+@media(hover:hover){.rec-card:hover .rec-card-img-wrap::after{opacity:1}}
+.rec-card-title{font-weight:600;color:${s.titleClr};margin-bottom:6px;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;font-size:inherit;line-height:inherit;padding:0;margin-top:0}
+.rec-card-desc{color:${s.descClr};line-height:1.6;display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden;margin:0}
+.rec-card-main{grid-row:1/3;height:${s.mainH}px}
+.rec-card-main .rec-card-body{flex-shrink:0;padding:${s.mainPad}px ${parseInt(s.mainPad)+2}px}
+.rec-card-main .rec-card-img-wrap{flex:1;min-height:0;position:relative}
+.rec-card-corner-icon{position:absolute;top:${s.cornerIconTop}px;right:${s.cornerIconRight}px;width:${s.cornerIconSize}px;height:${s.cornerIconSize}px;pointer-events:none;z-index:2}
+.rec-card-corner-icon img{width:100%;height:100%;object-fit:contain;display:block}
+.rec-card-main .rec-card-title{font-size:${s.mainTitleSz}px}
+.rec-card-main .rec-card-desc{font-size:${s.mainDescSz}px;-webkit-line-clamp:4}
+.rec-card-sub{height:${s.subH}px}
+.rec-card-sub .rec-card-body{flex-shrink:0;padding:${s.subPad}px ${parseInt(s.subPad)+2}px}
+.rec-card-sub .rec-card-img-wrap{flex:1;min-height:0}
+.rec-card-sub .rec-card-title{font-size:${s.subTitleSz}px}
+.rec-card-sub .rec-card-desc{font-size:${s.subDescSz}px;-webkit-line-clamp:2}
+.rec-btn-wrap{max-width:${s.maxW}px;margin:${s.btnMt}px auto 0;display:flex;justify-content:center}
+.rec-site-btn{display:flex;align-items:center;justify-content:center;width:fit-content;padding:6px 80px;background-color:${s.btnBg}!important;color:${s.btnClr}!important;border:1px solid ${s.btnBg}!important;border-radius:${s.btnRadius}px;font-size:${s.btnSize}rem;text-decoration:none;word-break:break-word;text-align:center;transition:background-color .2s,color .2s}
+.rec-site-btn:hover{color:${s.btnBg}!important;background-color:#fff!important}
+@media(max-width:768px){
+  .rec-icons-side{display:none}
+  .rec-icons-mobile{display:block}
+  .rec-cards-grid{grid-template-columns:1fr}
+  .rec-card-main{grid-row:auto;height:auto}
+  .rec-card-main .rec-card-img-wrap{flex:none;aspect-ratio:${s.mainRatioW}/${s.mainRatioH}}
+  .rec-card-sub{flex-direction:row;height:${s.subMobileH}px}
+  .rec-card-sub .rec-card-img-wrap{flex:1;min-height:0}
+  .rec-card-sub .rec-card-body{flex:1;padding:14px 16px;display:flex;flex-direction:column;justify-content:center}
+  .rec-card-sub .rec-card-desc{-webkit-line-clamp:3}
+  .rec-btn-wrap{margin:24px auto 15px}
+  .rec-site-btn{padding:6px 12px;width:100%;min-height:32px}
+}
+</style>`;
+}
+
+function buildJS(){
+  syncTabListFromDOM();
+  const tabsData = tabList.map(t => ({
+    id: t.id,
+    icons: t.icons.map(ic => ({
+      labelZh: ic.labelZh||'',
+      labelEn: ic.labelEn||'',
+      imgUrl:  ic.imgUrl||''
+    }))
+  }));
+
+  return `<script>
+(function(){
+  var REC_TABS=${JSON.stringify(tabsData)};
+  var lang='zh';
+  var _isTabClick=false;
+  var _tabClickTimer=null;
+
+  // ── 語言偵測（Shopline 語言切換）
+  function detectLang(){
+    // 1. URL hash: #zh-hant / #en
+    var h=location.hash.toLowerCase();
+    if(h==='#en'||h.indexOf('en')===1)return'en';
+    // 2. HTML lang attr
+    var docLang=(document.documentElement.lang||'').toLowerCase();
+    if(docLang.startsWith('en'))return'en';
+    // 3. Shopline mainConfig
+    try{
+      var code=(window.mainConfig&&window.mainConfig.localeData&&window.mainConfig.localeData.loadedLanguage&&window.mainConfig.localeData.loadedLanguage.code)||'';
+      if(code.toLowerCase().startsWith('en'))return'en';
+    }catch(e){}
+    return'zh';
+  }
+
+  function applyLang(l){
+    lang=l;
+    // 標題
+    document.querySelectorAll('[data-zh]').forEach(function(el){
+      var v=l==='en'&&el.dataset.en?el.dataset.en:el.dataset.zh;
+      if(v!==undefined&&v!==null)el.textContent=v;
+    });
+    // 重新渲染所有 icon
+    // 語言切換需重建 icon DOM
+    _iconsBuilt=false;
+    document.querySelectorAll('.rec-icons-side-group,.rec-icons-mobile-group').forEach(function(g){g.remove();});
+    var activeTab=document.querySelector('.rec-tab.active');
+    var activeId=activeTab?activeTab.dataset.id:REC_TABS[0]&&REC_TABS[0].id;
+    if(activeId)recRenderIcons(activeId);
+  }
+
+  var _iconsBuilt=false;
+  function _buildAllIcons(){
+    if(_iconsBuilt)return;
+    _iconsBuilt=true;
+    var makeIcon=function(ic,mobile){
+      var label=lang==='en'&&ic.labelEn?ic.labelEn:ic.labelZh;
+      var cls=mobile?'rec-icon-block-mobile':'rec-icon-block';
+      var inner=ic.imgUrl?'<img src="'+ic.imgUrl+'" alt="'+label+'" loading="eager">':'';
+      return'<div class="rec-icon-item"><div class="'+cls+'">'+inner+'</div><div class="rec-icon-label">'+label+'</div></div>';
+    };
+    REC_TABS.forEach(function(t){
+      var sideEl=document.getElementById('rec-icons-side-'+t.id);
+      if(sideEl){
+        var g=document.createElement('div');
+        g.className='rec-icons-side-group';
+        g.dataset.tab=t.id;
+        g.innerHTML=t.icons.map(function(ic){return makeIcon(ic,false);}).join('');
+        sideEl.appendChild(g);
+      }
+    });
+    var mobileEl=document.getElementById('rec-icons-mobile');
+    if(mobileEl){
+      REC_TABS.forEach(function(t){
+        var g=document.createElement('div');
+        g.className='rec-icons-mobile-group';
+        g.dataset.tab=t.id;
+        g.innerHTML=t.icons.map(function(ic){return makeIcon(ic,true);}).join('');
+        mobileEl.appendChild(g);
+      });
+    }
+  }
+  function recRenderIcons(tabId){
+    _buildAllIcons();
+    document.querySelectorAll('.rec-icons-side-group').forEach(function(g){
+      g.classList.toggle('active',g.dataset.tab===tabId);
+    });
+    document.querySelectorAll('.rec-icons-mobile-group').forEach(function(g){
+      g.classList.toggle('active',g.dataset.tab===tabId);
+    });
+  }
+
+  function recSwitchTab(id,el){
+    // 已經是 active 就不重複執行，避免 icon 閃爍
+    var panel=document.getElementById('rec-panel-'+id);
+    if(panel&&panel.classList.contains('active')) return;
+    var idx=REC_TABS.findIndex(function(t){return t.id===id;});
+    // 先加 active，再移除其他，避免移除瞬間的閃爍
+    if(el)el.classList.add('active');
+    if(panel)panel.classList.add('active');
+    document.querySelectorAll('.rec-tab').forEach(function(t){if(t!==el)t.classList.remove('active');});
+    document.querySelectorAll('.rec-panel').forEach(function(p){if(p!==panel)p.classList.remove('active');});
+    if(window.innerWidth<=768){
+      var track=document.getElementById('rec-panels');
+      if(track){
+        _isTabClick=true;
+        clearTimeout(_tabClickTimer);
+        _tabClickTimer=setTimeout(function(){
+          _isTabClick=false;
+          recRenderIcons(id);
+        },400);
+        track.style.scrollBehavior='smooth';
+        track.scrollLeft=idx*track.offsetWidth;
+        setTimeout(function(){track.style.scrollBehavior='auto';},400);
+      }
+    } else {
+      recRenderIcons(id);
+    }
+  }
+
+  // 把 recSwitchTab expose 到外部（HTML onclick 使用）
+  window.recSwitchTab=recSwitchTab;
+
+  // ── 手機版滑動
+  function initSwipe(){
+    var track=document.getElementById('rec-panels');
+    if(!track)return;
+    // 手機版：完全交給瀏覽器原生 scroll-snap + overscroll 回彈
+    // 同步 tab active 狀態（scrollend 或 scroll 結束後判斷）
+    var syncTimer=null;
+    var syncActivTab=function(){
+      if(!isMobile())return;
+      if(_isTabClick)return;
+      var w=track.offsetWidth;
+      if(!w)return;
+      var idx=Math.round(track.scrollLeft/w);
+      idx=Math.max(0,Math.min(idx,REC_TABS.length-1));
+      var tabs=document.querySelectorAll('.rec-tab');
+      var panels=document.querySelectorAll('.rec-panel');
+      var activeTab=tabs[idx]?tabs[idx]:null;
+      var activePanel=document.getElementById('rec-panel-'+REC_TABS[idx].id);
+      if(activePanel&&activePanel.classList.contains('active'))return;
+      tabs.forEach(function(t){t.classList.remove('active');});
+      panels.forEach(function(p){p.classList.remove('active');});
+      if(activeTab)activeTab.classList.add('active');
+      if(activePanel)activePanel.classList.add('active');
+      recRenderIcons(REC_TABS[idx].id);
+    };
+    track.addEventListener('scroll',function(){
+      clearTimeout(syncTimer);
+      syncTimer=setTimeout(syncActivTab,10);
+    });
+    function isMobile(){return window.innerWidth<=768;}
+  }
+
+  // ── 初始化
+  function init(){
+    lang=detectLang();
+    applyLang(lang);
+    // 初始 icon
+    if(REC_TABS.length)recRenderIcons(REC_TABS[0].id);
+    initSwipe();
+    // 監聽 Shopline 語言切換
+    window.addEventListener('hashchange',function(){applyLang(detectLang());});
+    // MutationObserver 監聽 html lang 屬性
+    var obs=new MutationObserver(function(){applyLang(detectLang());});
+    obs.observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',init);
+  }else{
+    init();
+  }
+})();
+<\/script>`;
+}
+
+function buildFonts(){
+  return `<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap"></noscript>`;
+}
+
+function generate(){
+  syncTabListFromDOM();
+  const s = getStyleSettings();
+  const incFonts = document.getElementById('opt-include-fonts').checked;
+  const incCss   = document.getElementById('opt-include-css').checked;
+  let out = '';
+  if(incFonts) out += buildFonts() + '\n';
+  if(incCss)   out += buildCSS(s) + '\n';
+  out += buildHTML(false) + '\n';
+  out += buildJS();
+  document.getElementById('output').value = out;
+  switchTab('output');
+}
+
+// ============================================================
+// 預覽
+// ============================================================
+const PREVIEW_BASE_CSS = `
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Noto Sans TC', -apple-system, sans-serif; margin: 0; padding: 0; }
+`;
+
+function renderPreview(){
+  syncTabListFromDOM();
+  const s   = getStyleSettings();
+  const css = buildCSS(s);
+  const body = buildHTML(true);
+  const js  = buildJS();
+  // 預覽裡攔截所有連結點擊
+  const interceptJS = `<script>document.addEventListener('click',function(e){var a=e.target.closest('a');if(a){e.preventDefault();}},true);<\/script>`;
+  const fullHtml = `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8">
+<style>${PREVIEW_BASE_CSS}</style>
+${css}
+</head><body>${body}${js}${interceptJS}</body></html>`;
+
+  const inner = document.getElementById('preview-inner');
+  let frame = document.getElementById('preview-iframe');
+
+  if(!frame){
+    inner.innerHTML = '';
+    frame = document.createElement('iframe');
+    frame.id = 'preview-iframe';
+    frame.style.cssText = 'width:100%;border:none;display:block;min-height:300px;';
+    frame.scrolling = 'no';
+    inner.appendChild(frame);
+  }
+
+  frame.srcdoc = fullHtml;
+  frame.onload = () => {
+    const updateH = () => {
+      try {
+        const h = frame.contentDocument.body.scrollHeight;
+        if(h > 0) frame.style.height = h + 'px';
+      } catch(e){}
+    };
+    updateH();
+    setTimeout(updateH, 300);
+    setTimeout(updateH, 800);
+    setTimeout(updateH, 1500);
+  };
+}
+
+function togglePreviewSize(){
+  document.getElementById('preview-frame').className =
+    'preview-frame' + (document.getElementById('preview-size').value === 'mobile' ? ' mobile' : '');
+}
+
+// ============================================================
+// 狀態存取
+// ============================================================
+function getState(){
+  syncTabListFromDOM();
+  return {
+    sectionTitleZh: readValue('section-title-zh'),
+    sectionTitleEn: readValue('section-title-en'),
+    tabs: JSON.parse(JSON.stringify(tabList)),
+    tabIdCounter,
+    style:{
+      bg:           readValue('s-bg'),
+      padV:         readValue('s-pad-v'),
+      padH:         readValue('s-pad-h'),
+      maxW:         readValue('s-max-width'),
+      titleSize:    readValue('s-title-size'),
+      titleMb:      readValue('s-title-mb'),
+      titleColor:   readValue('s-title-color'),
+      tabSize:      readValue('s-tab-size'),
+      tabGap:       readValue('s-tab-gap'),
+      tabMb:        readValue('s-tab-mb'),
+      tabInactive:  readValue('s-tab-inactive'),
+      tabActive:    readValue('s-tab-active'),
+      cardRadius:   readValue('s-card-radius'),
+      cardGap:      readValue('s-card-gap'),
+      shadow:       readValue('s-shadow'),
+      imgBg:        readValue('s-card-imgbg'),
+      hoverOp:      document.getElementById('s-hover-opacity')?.value||'15',
+      mainH:        readValue('s-main-h'),
+      mainPad:      readValue('s-main-pad'),
+      mainTitleSz:  readValue('s-main-title-size'),
+      mainDescSz:   readValue('s-main-desc-size'),
+      mainRatioW:   readValue('s-main-ratio-w'),
+      cornerIconSize:  readValue('s-corner-icon-size'),
+      cornerIconTop:   readValue('s-corner-icon-top'),
+      cornerIconRight: readValue('s-corner-icon-right'),
+      mainRatioH:   readValue('s-main-ratio-h'),
+      subH:         readValue('s-sub-h'),
+      subPad:       readValue('s-sub-pad'),
+      subTitleSz:   readValue('s-sub-title-size'),
+      subDescSz:    readValue('s-sub-desc-size'),
+      subMobileH:   readValue('s-sub-mobile-h'),
+      titleClr:     readValue('s-title-clr'),
+      descClr:      readValue('s-desc-clr'),
+      btnBg:        readValue('s-btn-bg'),
+      btnClr:       readValue('s-btn-clr'),
+      btnRadius:    readValue('s-btn-radius'),
+      btnMt:        readValue('s-btn-mt'),
+      btnSize:      readValue('s-btn-size'),
+    }
+  };
+}
+
+function setVal(id, v){ const el = document.getElementById(id); if(el && v !== undefined && v !== null) el.value = v; }
+
+function loadState(state){
+  setVal('section-title-zh', state.sectionTitleZh);
+  setVal('section-title-en', state.sectionTitleEn);
+  tabList = JSON.parse(JSON.stringify(state.tabs || []));
+  tabIdCounter = state.tabIdCounter || tabList.length;
+
+  const st = state.style || {};
+  const pairs = [
+    ['s-bg',st.bg],['s-pad-v',st.padV],['s-pad-h',st.padH],['s-max-width',st.maxW],
+    ['s-title-size',st.titleSize],['s-title-mb',st.titleMb],['s-title-color',st.titleColor],
+    ['s-tab-size',st.tabSize],['s-tab-gap',st.tabGap],['s-tab-mb',st.tabMb],
+    ['s-tab-inactive',st.tabInactive],['s-tab-active',st.tabActive],
+    ['s-card-radius',st.cardRadius],['s-card-gap',st.cardGap],
+    ['s-shadow',st.shadow],['s-card-imgbg',st.imgBg],
+    ['s-main-h',st.mainH],['s-main-pad',st.mainPad],
+    ['s-main-title-size',st.mainTitleSz],['s-main-desc-size',st.mainDescSz],
+    ['s-main-ratio-w',st.mainRatioW],['s-main-ratio-h',st.mainRatioH],['s-corner-icon-size',st.cornerIconSize||'80'],['s-corner-icon-top',st.cornerIconTop||'5'],['s-corner-icon-right',st.cornerIconRight||'25'],
+    ['s-sub-h',st.subH],['s-sub-pad',st.subPad],
+    ['s-sub-title-size',st.subTitleSz],['s-sub-desc-size',st.subDescSz],
+    ['s-sub-mobile-h',st.subMobileH],
+    ['s-title-clr',st.titleClr],['s-desc-clr',st.descClr],
+    ['s-btn-bg',st.btnBg],['s-btn-clr',st.btnClr],
+    ['s-btn-radius',st.btnRadius],['s-btn-mt',st.btnMt],['s-btn-size',st.btnSize],
+  ];
+  pairs.forEach(([id,v]) => setVal(id, v));
+  if(st.hoverOp !== undefined){
+    const el = document.getElementById('s-hover-opacity');
+    if(el){ el.value = st.hoverOp; document.getElementById('s-hover-opacity-val').textContent = st.hoverOp + '%'; }
+  }
+
+  // 顏色同步：picker 已被 setVal 填好，再同步到 txt 欄位
+  ['s-bg','s-title-color','s-tab-inactive','s-tab-active','s-card-imgbg','s-title-clr','s-desc-clr','s-btn-bg','s-btn-clr'].forEach(id => {
+    const pick = document.getElementById(id);
+    const txt  = document.getElementById(id+'-txt');
+    if(pick && txt) txt.value = pick.value;
+  });
+
+  renderTabList();
+  renderPreview();
+}
+
+function resetEditor(){
+  tabList = [];
+  tabIdCounter = 0;
+  setVal('section-title-zh','本月推薦鞋款');
+  setVal('section-title-en','');
+  renderTabList();
+  addTab();
+  renderPreview();
+}
+
+// ============================================================
+// 匯出 / 匯入 JSON
+// ============================================================
+function exportJSON(){
+  const blob = new Blob([JSON.stringify({projects}, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'rec-projects.json';
+  a.click();
+}
+function importJSON(e){
+  const file = e.target.files[0];
+  e.target.value = '';
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try{
+      const data = JSON.parse(ev.target.result);
+      if(data.projects && Array.isArray(data.projects) && data.projects.length){
+        projects = data.projects;
+        currentProjectId = projects[0].id;
+        saveProjects();
+        renderProjectList();
+        loadProject(currentProjectId);
+      } else if(data.tabs){
+        loadState(data);
+        autoSave();
+      } else {
+        alert('找不到可匯入的資料，請確認格式正確');
+      }
+    }catch(err){ alert('JSON 格式錯誤：' + err.message); }
+  };
+  reader.readAsText(file);
+}
+
+// ============================================================
+// Tab 切換（產生器介面）
+// ============================================================
+function switchTab(name){
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  const idx = ['content','style','output'].indexOf(name);
+  document.querySelectorAll('.tab-btn')[idx]?.classList.add('active');
+}
+
+// ============================================================
+// 複製
+// ============================================================
+function copyCode(){
+  const ta = document.getElementById('output');
+  ta.select();
+  document.execCommand('copy');
+  const el = document.getElementById('copied');
+  el.style.display = 'inline';
+  setTimeout(() => el.style.display = 'none', 2000);
+}
+
+// ============================================================
+// loadProject
+// ============================================================
+function loadProject(id){
+  const p = projects.find(p => p.id === id);
+  if(!p) return;
+  document.getElementById('current-project-name').textContent = p.name || '未命名專案';
+  if(p.state) loadState(p.state);
+  else resetEditor();
+}
+
+// ============================================================
+// 初始化
+// ============================================================
+loadProjects();
+</script>
+</body>
+</html>
